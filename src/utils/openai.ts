@@ -95,140 +95,31 @@ const getRelevantData = (userMessage: string) => {
 export const getChatResponse = async (userMessage: string): Promise<{
   content: string;
   requiresHandoff: boolean;
-  actionResult?: ActionResult;
+  actionResult?: any;
 }> => {
-  // Get contextual data based on user message
-  const contextData = getRelevantData(userMessage);
-  
-  // Reset history if it's too long to prevent token limit issues
-  if (messageHistory.length > 10) {
-    messageHistory = [];
-  }
-  
-  // Add user message to history
-  messageHistory.push({
-    role: 'user',
-    content: userMessage
-  });
-  
   try {
-    // Before making the request, log what we're about to send
-    console.log('Sending request to API:', {
-      url: '/api/chat',
-      messageCount: messageHistory.length
-    });
-
-    const response = await fetch('/api/chat', {
+    console.log('Sending request to simplified API...');
+    const response = await fetch('/api/chat.js', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        messages: messageHistory,
-        contextData
-      }),
+      body: JSON.stringify({ message: userMessage }),
     });
 
-    console.log('Response status:', response.status);
-    
-    // Check if the response is JSON
-    const contentType = response.headers.get("content-type");
-    let responseData;
-    
-    if (contentType && contentType.indexOf("application/json") !== -1) {
-      responseData = await response.json();
-      console.log('JSON response received:', responseData);
-    } else {
-      const textResponse = await response.text();
-      console.error('Non-JSON response:', textResponse);
-      throw new Error(`Received non-JSON response: ${textResponse.substring(0, 100)}...`);
-    }
+    console.log('Response received:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
 
-    if (!response.ok) {
-      console.error('API Error:', responseData);
-      
-      // Extract error details for display
-      let errorDetails = 'Server error';
-      
-      if (responseData) {
-        if (responseData.message) {
-          errorDetails = responseData.message;
-        } else if (responseData.error) {
-          if (typeof responseData.error === 'string') {
-            errorDetails = responseData.error;
-          } else {
-            errorDetails = JSON.stringify(responseData.error);
-          }
-        }
-      }
-      
-      throw new Error(errorDetails);
-    }
-
-    if (!responseData.content) {
-      console.error('Invalid response format:', responseData);
-      throw new Error('Response missing content field');
-    }
-
-    const aiResponse = responseData.content;
-    
-    // Store AI response in history
-    messageHistory.push({
-      role: 'assistant',
-      content: aiResponse
-    });
-    
-    // Parse the response to extract actions
-    const { actionType, params, content } = parseAction(aiResponse);
-    
-    // Check if action is present
-    let actionResult: ActionResult | undefined;
-    
-    if (actionType && params) {
-      // Execute the action
-      actionResult = await executeAction(actionType, params);
-    }
-    
-    // Determine if agent handoff is needed
-    const handoffKeywords = [
-      'cannot help', 'cannot assist', 'beyond my capabilities', 
-      'need a human', 'agent assistance', 'speak to a representative',
-      'complex issue', 'escalate', 'human support'
-    ];
-    
-    const requiresHandoff = handoffKeywords.some(keyword => 
-      content.toLowerCase().includes(keyword.toLowerCase())
-    );
-    
     return {
-      content,
-      requiresHandoff,
-      actionResult
+      content: data.content,
+      requiresHandoff: false,
     };
-  } catch (error: any) {
-    console.error('Error calling chat API:', error);
-    
-    // Better error handling to prevent [object Object] in the error message
-    let errorMessage = 'Unknown error';
-    
-    try {
-      if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error.message) {
-        errorMessage = String(error.message);
-      } else if (error.details) {
-        errorMessage = String(error.details);
-      } else {
-        errorMessage = JSON.stringify(error);
-      }
-    } catch (e) {
-      errorMessage = 'Error occurred, but could not extract details';
-    }
-    
+  } catch (error) {
+    console.error('Error:', error);
     return {
-      content: `I'm sorry, I encountered an error while processing your request: ${errorMessage}. Please try again later.`,
-      requiresHandoff: true
+      content: 'Sorry, there was an error processing your request.',
+      requiresHandoff: true,
     };
   }
 };
