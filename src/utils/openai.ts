@@ -150,12 +150,16 @@ export const getChatResponse = async (userMessage: string): Promise<{
       
       // Extract error details for display
       let errorDetails = 'Server error';
+      
       if (responseData) {
-        if (responseData.error) {
-          errorDetails = String(responseData.error);
-        }
-        if (responseData.details) {
-          errorDetails += `: ${String(responseData.details)}`;
+        if (responseData.message) {
+          errorDetails = responseData.message;
+        } else if (responseData.error) {
+          if (typeof responseData.error === 'string') {
+            errorDetails = responseData.error;
+          } else {
+            errorDetails = JSON.stringify(responseData.error);
+          }
         }
       }
       

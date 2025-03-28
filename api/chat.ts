@@ -87,6 +87,13 @@ export default async function handler(
   }
 
   try {
+    // Log OpenAI API key for debugging (first few characters)
+    if (process.env.OPENAI_API_KEY) {
+      const apiKeyPrefix = process.env.OPENAI_API_KEY.substring(0, 7);
+      const apiKeyLength = process.env.OPENAI_API_KEY.length;
+      console.log(`Using OpenAI API key with prefix ${apiKeyPrefix}... (${apiKeyLength} characters)`);
+    }
+    
     const { messages, contextData } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
@@ -132,25 +139,23 @@ export default async function handler(
   } catch (error: any) {
     console.error('Error processing request:', error);
     
+    // Ensure we have a clean error message
+    let errorMessage = error.message || 'Unknown error occurred';
+    let errorType = error.name || 'Error';
+    
     // Check for specific OpenAI error types
     if (error.name === 'AuthenticationError') {
-      return res.status(500).json({ 
-        error: 'OpenAI API key is invalid',
-        details: 'Authentication with OpenAI failed'
-      });
+      errorType = 'AuthenticationError';
+      errorMessage = 'OpenAI API key is invalid or not configured correctly';
+    } else if (error.name === 'RateLimitError') {
+      errorType = 'RateLimitError';
+      errorMessage = 'OpenAI rate limit exceeded';
     }
     
-    if (error.name === 'RateLimitError') {
-      return res.status(429).json({ 
-        error: 'OpenAI rate limit exceeded',
-        details: 'The API rate limit has been hit'
-      });
-    }
-    
-    // For any other error
+    // Return a consistent error format
     return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message || 'Unknown error occurred'
+      error: errorType,
+      message: errorMessage
     });
   }
 } 
