@@ -34,8 +34,29 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Log API key status (don't log the actual key)
-  console.log('OpenAI API key status:', process.env.OPENAI_API_KEY ? 'Set' : 'Not set');
+  // More detailed API key logging
+  const apiKeyStatus = !process.env.OPENAI_API_KEY 
+    ? 'Not set' 
+    : process.env.OPENAI_API_KEY.startsWith('sk-') 
+      ? 'Valid format' 
+      : 'Invalid format';
+  
+  console.log('OpenAI API key status:', apiKeyStatus);
+  
+  // Check if OpenAI API key is missing or invalid
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({ 
+      error: 'OpenAI API key is not configured', 
+      details: 'The OPENAI_API_KEY environment variable is not set'
+    });
+  }
+  
+  if (!process.env.OPENAI_API_KEY.startsWith('sk-')) {
+    return res.status(500).json({ 
+      error: 'OpenAI API key has invalid format', 
+      details: 'The OPENAI_API_KEY environment variable does not have the expected format'
+    });
+  }
   
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');

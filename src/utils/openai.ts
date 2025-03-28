@@ -147,7 +147,19 @@ export const getChatResponse = async (userMessage: string): Promise<{
 
     if (!response.ok) {
       console.error('API Error:', responseData);
-      throw new Error(responseData.error || `Server error: ${response.status}`);
+      
+      // Extract error details for display
+      let errorDetails = 'Server error';
+      if (responseData) {
+        if (responseData.error) {
+          errorDetails = String(responseData.error);
+        }
+        if (responseData.details) {
+          errorDetails += `: ${String(responseData.details)}`;
+        }
+      }
+      
+      throw new Error(errorDetails);
     }
 
     if (!responseData.content) {
