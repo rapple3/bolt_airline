@@ -124,7 +124,9 @@ export const getChatResponse = async (userMessage: string): Promise<{
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get response from AI');
+      const errorData = await response.json();
+      console.error('API Error:', errorData);
+      throw new Error(errorData.error || 'Failed to get response from AI');
     }
 
     const data = await response.json();
@@ -163,11 +165,11 @@ export const getChatResponse = async (userMessage: string): Promise<{
       requiresHandoff,
       actionResult
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error calling chat API:', error);
     
     return {
-      content: "I'm sorry, I encountered an error while processing your request. Please try again later.",
+      content: `I'm sorry, I encountered an error while processing your request: ${error.message || 'Unknown error'}. Please try again later.`,
       requiresHandoff: true
     };
   }

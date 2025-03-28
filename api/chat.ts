@@ -35,6 +35,17 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  console.log('API Route hit:', req.method);
+  
+  // Validate API key is present
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OpenAI API key is not configured');
+    return res.status(500).json({ 
+      error: 'OpenAI API key is not configured',
+      env: process.env.OPENAI_API_KEY ? 'API key exists' : 'API key missing'
+    });
+  }
+
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -49,6 +60,8 @@ export default async function handler(
   }
 
   try {
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const { messages, contextData } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
@@ -83,23 +96,38 @@ Only include the action directive when you're performing an action.`
       }
     }
 
-    const completion = await openai.chat.completions.create({
-      messages,
-      model: 'gpt-3.5-turbo',
-      temperature: 0.7,
-    });
+    console.log('Sending to OpenAI:', JSON.stringify(messages, null, 2));
 
-    if (!completion.choices[0].message.content) {
-      throw new Error('No response from OpenAI');
+    try {
+      const completion = await openai.chat.completions.create({
+        messages,
+        model: 'gpt-3.5-turbo',
+        temperature: 0.7,
+      });
+
+      if (!completion.choices[0].message.content) {
+        throw new Error('No response from OpenAI');
+      }
+
+      console.log('OpenAI response received');
+
+      return res.status(200).json({
+        content: completion.choices[0].message.content,
+        role: 'assistant'
+      });
+    } catch (openaiError) {
+      console.error('OpenAI API Error:', openaiError);
+      return res.status(500).json({ 
+        error: 'OpenAI API error',
+        details: openaiError.message
+      });
     }
-
-    return res.status(200).json({
-      content: completion.choices[0].message.content,
-      role: 'assistant'
-    });
 
   } catch (error) {
     console.error('Error processing request:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 } 
