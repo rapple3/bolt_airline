@@ -112,6 +112,12 @@ export const getChatResponse = async (userMessage: string): Promise<{
   });
   
   try {
+    // Before making the request, log what we're about to send
+    console.log('Sending request to API:', {
+      url: '/api/chat',
+      messageCount: messageHistory.length
+    });
+
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
