@@ -116,6 +116,7 @@ export const getChatResponse = async (userMessage: string): Promise<{
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
         messages: messageHistory,
@@ -123,14 +124,22 @@ export const getChatResponse = async (userMessage: string): Promise<{
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('API Error:', errorData);
-      throw new Error(errorData.error || 'Failed to get response from AI');
+    let errorData;
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      errorData = await response.json();
+    } else {
+      const text = await response.text();
+      console.error('Non-JSON response:', text);
+      throw new Error('Received non-JSON response from server');
     }
 
-    const data = await response.json();
-    const aiResponse = data.content;
+    if (!response.ok) {
+      console.error('API Error:', errorData);
+      throw new Error(errorData.error || `Server error: ${response.status}`);
+    }
+
+    const aiResponse = errorData.content;
     
     // Store AI response in history
     messageHistory.push({
