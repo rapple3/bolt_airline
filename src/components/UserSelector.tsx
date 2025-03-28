@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { generateUserProfiles } from '../data/mock';
+import { mockUserProfiles } from '../data/mockData';
 import { ChevronDown, Award } from 'lucide-react';
 
 interface UserSelectorProps {
@@ -11,7 +11,7 @@ interface UserSelectorProps {
 export default function UserSelector({ onSelectUser, currentUserId }: UserSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const profiles = generateUserProfiles(5);
+  const profiles = mockUserProfiles;
   const currentProfile = profiles.find(p => p.id === currentUserId) || profiles[0];
 
   // Close dropdown when clicking outside

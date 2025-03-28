@@ -156,14 +156,30 @@ const customerNames = [
   'Sophia Martinez',
 ];
 
+// Customer profile images
+const customerAvatars = [
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1520813792240-56fc4a3765a7?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+];
+
 // Generate a customer
-const generateCustomer = (id: number): { id: string, name: string, email: string } => {
+const generateCustomer = (id: number): { id: string, name: string, email: string, avatarUrl: string } => {
   const name = customerNames[id % customerNames.length];
   const email = name.toLowerCase().replace(' ', '.') + '@example.com';
+  const avatarUrl = customerAvatars[id % customerAvatars.length];
   return {
     id: `CUST${String(id).padStart(3, '0')}`,
     name,
     email,
+    avatarUrl,
   };
 };
 
@@ -204,7 +220,7 @@ const generateBooking = (id: number, customerId: string, flight: FlightData): Bo
 
 // Generate loyalty data
 const generateLoyaltyData = (customerId: string): LoyaltyData => {
-  const tierOptions = ['bronze', 'silver', 'gold', 'platinum'];
+  const tierOptions: ('bronze' | 'silver' | 'gold' | 'platinum')[] = ['bronze', 'silver', 'gold', 'platinum'];
   const tierIndex = Math.floor(Math.random() * 4);
   const tier = tierOptions[tierIndex];
   
@@ -240,14 +256,14 @@ const generateUserProfile = (customerId: string, bookings: BookingData[]): UserP
     new Date(booking.date) > new Date()
   );
   
-  const seatPreferences = ['window', 'aisle', 'middle'];
+  const seatPreferences: ('window' | 'aisle' | 'no preference')[] = ['window', 'aisle', 'no preference'];
   const mealPreferences = ['regular', 'vegetarian', 'vegan', 'gluten-free', 'kosher'];
   
   return {
     id: customerId,
     name: customer.name,
     email: customer.email,
-    avatarUrl: `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80`,
+    avatarUrl: customer.avatarUrl,
     loyaltyTier: loyalty.tier,
     loyaltyPoints: loyalty.points,
     upcomingFlights,
@@ -274,13 +290,31 @@ export const generateMockData = (
   // Generate loyalty data for each customer
   const loyaltyData = customers.map(customer => generateLoyaltyData(customer.id));
   
-  // Generate bookings - each customer has several bookings
+  // Generate bookings - each customer has several bookings with varying patterns
   let bookingId = 1;
   const bookings: BookingData[] = [];
   
-  customers.forEach(customer => {
-    // Assign random flights to this customer
-    const customerBookingsCount = Math.floor(Math.random() * bookingsPerCustomer) + 1;
+  customers.forEach((customer, index) => {
+    // Assign different booking patterns based on customer index
+    let customerBookingsCount;
+    
+    if (index === 0) {
+      // First user has no bookings
+      customerBookingsCount = 0;
+    } else if (index === 1) {
+      // Second user has exactly one upcoming booking
+      customerBookingsCount = 1;
+    } else if (index === 2) {
+      // Third user has exactly 3 upcoming bookings
+      customerBookingsCount = 3;
+    } else if (index === 3) {
+      // Fourth user has many upcoming bookings
+      customerBookingsCount = 5 + Math.floor(Math.random() * 3); // 5-7 bookings
+    } else {
+      // Other users have random booking counts
+      customerBookingsCount = Math.floor(Math.random() * bookingsPerCustomer) + 1;
+    }
+    
     for (let i = 0; i < customerBookingsCount; i++) {
       const randomFlightIndex = Math.floor(Math.random() * flights.length);
       const booking = generateBooking(bookingId, customer.id, flights[randomFlightIndex]);
@@ -344,24 +378,91 @@ const bookingsPerCustomer = 3;
 const customers = Array.from({ length: customerCount }, (_, i) => generateCustomer(i + 1));
 const loyaltyData = customers.map(customer => generateLoyaltyData(customer.id));
 
-// Export mock data with specific counts - you can modify these numbers
-export const mockFlights = Array.from({ length: flightCount }, (_, i) => generateFlight(i + 1));
+// Generate flights with specific dates to ensure upcoming flights
+const now = new Date();
+const tomorrow = new Date(now);
+tomorrow.setDate(tomorrow.getDate() + 1);
+const nextWeek = new Date(now);
+nextWeek.setDate(nextWeek.getDate() + 7);
+const nextMonth = new Date(now);
+nextMonth.setMonth(nextMonth.getMonth() + 1);
 
+// Create flights with specific dates to ensure they're upcoming
+export const mockFlights: FlightData[] = [
+  // Tomorrow flights
+  generateFlight(1, tomorrow),
+  generateFlight(2, tomorrow),
+  // Next week flights
+  generateFlight(3, nextWeek),
+  generateFlight(4, nextWeek),
+  // Next month flights
+  generateFlight(5, nextMonth),
+  generateFlight(6, nextMonth),
+  // Additional random flights
+  ...Array.from({ length: flightCount - 6 }, (_, i) => generateFlight(i + 7))
+];
+
+// Create bookings with varied patterns for each user
 let bookingId = 1;
 export const mockBookings: BookingData[] = [];
-customers.forEach(customer => {
-  const customerBookingsCount = Math.floor(Math.random() * bookingsPerCustomer) + 1;
-  for (let i = 0; i < customerBookingsCount; i++) {
-    const randomFlightIndex = Math.floor(Math.random() * mockFlights.length);
-    const booking = generateBooking(bookingId, customer.id, mockFlights[randomFlightIndex]);
+
+customers.forEach((customer, index) => {
+  // Different booking patterns based on user
+  if (index === 0) {
+    // First user - no upcoming flights
+    // Add a past booking
+    const pastDate = new Date(now);
+    pastDate.setDate(pastDate.getDate() - 7);
+    
+    const pastFlight = generateFlight(100, pastDate);
+    const booking = generateBooking(bookingId, customer.id, pastFlight);
+    booking.status = 'completed'; // Mark as completed
     mockBookings.push(booking);
     bookingId++;
+  } 
+  else if (index === 1) {
+    // Second user - one upcoming flight (tomorrow)
+    const booking = generateBooking(bookingId, customer.id, mockFlights[0]); // Tomorrow flight
+    mockBookings.push(booking);
+    bookingId++;
+  }
+  else if (index === 2) {
+    // Third user - three upcoming flights (varied dates)
+    for (let i = 0; i < 3; i++) {
+      const booking = generateBooking(bookingId, customer.id, mockFlights[i]);
+      mockBookings.push(booking);
+      bookingId++;
+    }
+  }
+  else if (index === 3) {
+    // Fourth user - many upcoming flights (5+)
+    for (let i = 0; i < 5; i++) {
+      const booking = generateBooking(bookingId, customer.id, mockFlights[i % mockFlights.length]);
+      mockBookings.push(booking);
+      bookingId++;
+    }
+  }
+  else {
+    // Other users - random number of bookings
+    const bookingCount = Math.floor(Math.random() * 3) + 1;
+    for (let i = 0; i < bookingCount; i++) {
+      const randomFlightIndex = Math.floor(Math.random() * mockFlights.length);
+      const booking = generateBooking(bookingId, customer.id, mockFlights[randomFlightIndex]);
+      mockBookings.push(booking);
+      bookingId++;
+    }
   }
 });
 
 export const mockLoyalty = loyaltyData;
 
-export const mockUserProfile = generateUserProfile(customers[0].id, mockBookings);
+// Generate user profiles with the modified bookings
+export const mockUserProfiles = customers.map(customer => 
+  generateUserProfile(customer.id, mockBookings)
+);
+
+// Default to first user
+export const mockUserProfile = mockUserProfiles[0];
 
 export const airlinePolicies = {
   baggage: {
@@ -386,8 +487,3 @@ export const airlinePolicies = {
     deadline: '2 hours before departure'
   }
 };
-
-// You can also export all user profiles if needed
-export const mockUserProfiles = customers.map(customer => 
-  generateUserProfile(customer.id, mockBookings)
-);

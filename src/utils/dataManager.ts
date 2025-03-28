@@ -1,4 +1,4 @@
-import { mockBookings, mockUserProfile } from '../data/mockData';
+import { mockBookings, mockUserProfile, mockUserProfiles } from '../data/mockData';
 import { generateFlights } from '../data/mock/flights';
 import { FlightData, BookingData, UserProfile, SeatInfo } from '../types';
 
@@ -304,7 +304,19 @@ class DataManager {
     // Reset to mock data
     this.flights = generatedFlights;
     this.bookings = [...mockBookings];
-    this.userProfile = { ...mockUserProfile };
+    
+    // Keep the current user ID when resetting to maintain chosen user
+    const currentUserId = this.userProfile.id;
+    // Find matching user in mock profiles or fall back to the default
+    const matchingUser = mockBookings.find(booking => booking.customerId === currentUserId);
+    if (matchingUser) {
+      // If current user exists in the mock data, keep their ID
+      const mockUser = { ...mockUserProfiles.find((p: UserProfile) => p.id === currentUserId) || mockUserProfile };
+      this.userProfile = mockUser;
+    } else {
+      // Otherwise, use the default user profile
+      this.userProfile = { ...mockUserProfile };
+    }
     
     // Clear storage and save new data
     localStorage.removeItem('airline_app_flights');
