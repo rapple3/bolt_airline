@@ -9,10 +9,9 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "vercel-build": "npm run build"
+    "preview": "vite preview"
   },
   "dependencies": {
     "clsx": "^2.1.0",

@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import OpenAI from 'openai';
 
-// Initialize OpenAI client
+// Initialize OpenAI client with API key from environment variable
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -73,19 +73,7 @@ export default async function handler(
     if (!messages.some(m => m.role === 'system')) {
       messages.unshift({
         role: 'system',
-        content: `You are an AI assistant for an airline. Help users with their flight-related queries.
-You can perform the following actions to help users:
-
-1. Search for flights: [ACTION:SEARCH_FLIGHTS]from="New York" to="London" date="2023-12-25"[/ACTION]
-2. Book a flight: [ACTION:BOOK_FLIGHT]flightNumber="FL123" seatClass="economy"[/ACTION]
-3. Cancel a booking: [ACTION:CANCEL_BOOKING]bookingReference="BK12345"[/ACTION]
-4. Change flight: [ACTION:CHANGE_FLIGHT]bookingReference="BK12345" newFlightNumber="FL456"[/ACTION]
-5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="BK12345" newSeatNumber="12A"[/ACTION]
-6. Check-in: [ACTION:CHECK_IN]bookingReference="BK12345"[/ACTION]
-7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="BK12345"[/ACTION]
-
-Use these actions when users request these specific services.
-Only include the action directive when you're performing an action.`
+        content: 'You are an AI assistant for an airline. Help users with their flight-related queries.'
       });
     }
 
