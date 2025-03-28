@@ -92,30 +92,55 @@ const getRelevantData = (userMessage: string) => {
   };
 };
 
+// Function to call the API with fallback
+async function callApiWithFallback(userMessage: string) {
+  // Try different API endpoints until one works
+  const endpoints = [
+    '/api/chat',
+    '/api/chat.js',
+    '/api/chat/index',
+    '/api/chat/index.js'
+  ];
+  
+  let lastError = null;
+  
+  // Try each endpoint
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Trying endpoint: ${endpoint}`);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
+      
+      console.log(`Response from ${endpoint}:`, response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Success data:', data);
+        return { success: true, data };
+      }
+    } catch (err) {
+      console.error(`Error with endpoint ${endpoint}:`, err);
+      lastError = err;
+    }
+  }
+  
+  // If all endpoints failed, throw the last error
+  throw lastError || new Error('All API endpoints failed');
+}
+
 export const getChatResponse = async (userMessage: string): Promise<{
   content: string;
   requiresHandoff: boolean;
   actionResult?: any;
 }> => {
   try {
-    console.log('Sending request to API:', userMessage);
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ message: userMessage }),
-    });
-
-    console.log('Response status:', response.status);
-    
-    if (!response.ok) {
-      console.error('API error response:', response.status);
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log('Response data:', data);
+    console.log('Attempting to call API with fallback...');
+    const { data } = await callApiWithFallback(userMessage);
 
     return {
       content: data.content,

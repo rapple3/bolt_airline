@@ -1,4 +1,4 @@
-// Simple API handler using ES modules for Vercel
+// Simple API handler using ES modules
 export default function handler(req, res) {
   // Set CORS headers for all responses
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,11 +11,11 @@ export default function handler(req, res) {
   }
 
   // Log received request
-  console.log('API request received:', req.method);
+  console.log('API request received from chat/index.js:', req.method);
   
   // Return a simple response for any request
   res.status(200).json({
-    content: "Hello! I'm your AI travel assistant. How can I help you today?",
+    content: "Hello from /api/chat! I'm your AI travel assistant. How can I help you today?",
     role: 'assistant'
   });
 } 
