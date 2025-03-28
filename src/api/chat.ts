@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import OpenAI from 'openai';
-import { ActionResult } from '../src/utils/actionHandler';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -35,15 +34,19 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  console.log('API Route hit:', req.method);
-  
-  // Validate API key is present
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('OpenAI API key is not configured');
-    return res.status(500).json({ 
-      error: 'OpenAI API key is not configured',
-      env: process.env.OPENAI_API_KEY ? 'API key exists' : 'API key missing'
-    });
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  // Handle OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
   // Only allow POST requests
@@ -60,8 +63,6 @@ export default async function handler(
   }
 
   try {
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    
     const { messages, contextData } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
@@ -96,34 +97,22 @@ Only include the action directive when you're performing an action.`
       }
     }
 
-    console.log('Sending to OpenAI:', JSON.stringify(messages, null, 2));
+    const completion = await openai.chat.completions.create({
+      messages,
+      model: 'gpt-3.5-turbo',
+      temperature: 0.7,
+    });
 
-    try {
-      const completion = await openai.chat.completions.create({
-        messages,
-        model: 'gpt-3.5-turbo',
-        temperature: 0.7,
-      });
-
-      if (!completion.choices[0].message.content) {
-        throw new Error('No response from OpenAI');
-      }
-
-      console.log('OpenAI response received');
-
-      return res.status(200).json({
-        content: completion.choices[0].message.content,
-        role: 'assistant'
-      });
-    } catch (openaiError) {
-      console.error('OpenAI API Error:', openaiError);
-      return res.status(500).json({ 
-        error: 'OpenAI API error',
-        details: openaiError.message
-      });
+    if (!completion.choices[0].message.content) {
+      throw new Error('No response from OpenAI');
     }
 
-  } catch (error) {
+    return res.status(200).json({
+      content: completion.choices[0].message.content,
+      role: 'assistant'
+    });
+
+  } catch (error: any) {
     console.error('Error processing request:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
