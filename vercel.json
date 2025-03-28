@@ -10,8 +10,5 @@
       "dest": "/",
       "status": 200
     }
-  ],
-  "env": {
-    "VITE_OPENAI_API_KEY": "@openai_api_key"
-  }
+  ]
 } 
