@@ -6,7 +6,7 @@
   "framework": "vite",
   "outputDirectory": "dist",
   "functions": {
-    "src/api/**/*.ts": {
+    "api/**/*.ts": {
       "runtime": "@vercel/node@3.0.0",
       "memory": 1024,
       "maxDuration": 10
@@ -15,7 +15,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/src/api/$1"
+      "dest": "/api/$1"
     },
     {
       "src": "^/assets/(.*)",
