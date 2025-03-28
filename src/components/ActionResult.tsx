@@ -75,9 +75,27 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({ result }) => {
     return msg.includes('change') ? 'change' : 'book';
   };
 
+  // Process flights data to the format FlightOptions component expects
+  const processFlightsData = () => {
+    if (!data || !Array.isArray(data)) return [];
+    
+    return data.map(flight => ({
+      flightNumber: flight.flightNumber,
+      departure: flight.departure,
+      arrival: flight.arrival,
+      scheduledTime: flight.scheduledTime,
+      duration: flight.duration,
+      aircraft: flight.aircraft,
+      economySeats: flight.seats?.economy?.filter((seat: any) => seat.status === 'available').length || 0,
+      businessSeats: flight.seats?.business?.filter((seat: any) => seat.status === 'available').length || 0,
+      firstClassSeats: flight.seats?.first?.filter((seat: any) => seat.status === 'available').length || 0
+    }));
+  };
+
   // Check if this is a flight search result with options
-  const isFlightSearch = success && data?.flights && Array.isArray(data.flights);
+  const isFlightSearch = success && data && Array.isArray(data);
   const actionType = determineActionType();
+  const processedFlights = isFlightSearch ? processFlightsData() : [];
 
   return (
     <div className={`p-4 rounded-lg border ${
@@ -99,9 +117,9 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({ result }) => {
           <p className="text-gray-600 mt-1">{message}</p>
           
           {/* Show flight options if this is a flight search result */}
-          {isFlightSearch && !actionComplete && (
+          {isFlightSearch && !actionComplete && processedFlights.length > 0 && (
             <FlightOptions 
-              flights={data.flights} 
+              flights={processedFlights} 
               onSelect={handleSelectFlight}
               actionType={actionType}
             />

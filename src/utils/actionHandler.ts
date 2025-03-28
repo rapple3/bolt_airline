@@ -225,10 +225,10 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
         const airline = airlines[Math.floor(Math.random() * airlines.length)];
         const flightNumber = `${airline}${1000 + Math.floor(Math.random() * 9000)}`;
         
-        // Generate available seats - make sure we have at least some available seats
-        const economySeats = 30 + Math.floor(Math.random() * 100);
-        const businessSeats = 8 + Math.floor(Math.random() * 20);
-        const firstClassSeats = 2 + Math.floor(Math.random() * 8);
+        // Generate available seats - make sure we have plenty of available seats
+        const economySeats = 50 + Math.floor(Math.random() * 50);
+        const businessSeats = 15 + Math.floor(Math.random() * 15);
+        const firstClassSeats = 5 + Math.floor(Math.random() * 5);
         
         const generateSeats = (count: number, classType: 'economy' | 'business' | 'first'): any[] => {
           const seats = [];
@@ -238,8 +238,8 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
             const row = Math.floor(i / 6) + 1;
             const col = ['A', 'B', 'C', 'D', 'E', 'F'][i % 6];
             
-            // Ensure at least 70% of seats are available to avoid "fully booked" issues
-            const status = Math.random() > 0.3 ? 'available' : 'occupied';
+            // Make at least 90% of seats available to avoid "fully booked" issues
+            const status = Math.random() > 0.1 ? 'available' : 'occupied';
             
             seats.push({
               seatNumber: `${row}${col}`,
@@ -249,101 +249,62 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
               features: classType !== 'economy' ? ['Extra Legroom'] : []
             });
           }
+          
           return seats;
         };
         
-        // Create the flight object
-        const flight = {
+        // Create a new flight with these properties
+        const newFlight = {
           flightNumber,
+          airline,
           departure: from,
           arrival: to,
           scheduledTime: flightDate.toISOString(),
-          status: 'on-time',
-          aircraft: ['Boeing 737', 'Airbus A320', 'Boeing 787', 'Airbus A350'][Math.floor(Math.random() * 4)],
+          status: 'On Time',
+          duration,
+          aircraft: `Boeing ${737 + Math.floor(Math.random() * 40) * 10}`,
+          gate: `${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.floor(Math.random() * 20) + 1}`,
+          terminal: Math.floor(Math.random() * 5) + 1,
           seats: {
             economy: generateSeats(economySeats, 'economy'),
             business: generateSeats(businessSeats, 'business'),
             first: generateSeats(firstClassSeats, 'first')
-          },
-          duration,
-          gate: `${['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)]}${Math.floor(Math.random() * 20) + 1}`
+          }
         };
         
-        generatedFlights.push(flight);
+        generatedFlights.push(newFlight);
       }
       
-      // Add the generated flights to the DataManager so they can be booked
-      // Get the existing flights
-      const existingFlights = dataManager.getFlights();
-      
-      // Add our generated flights to the flight database
-      generatedFlights.forEach(flight => {
-        // Check if a flight with this number already exists to avoid duplicates
-        if (!existingFlights.some(f => f.flightNumber === flight.flightNumber)) {
-          existingFlights.push(flight);
-        }
-      });
-      
-      // Update the flight database with our newly generated flights
-      dataManager.setFlights(existingFlights);
-      
-      // Use the generated flights for this search
-      filteredFlights = generatedFlights;
-    }
-    
-    // Limit to at most 5 flights
-    filteredFlights = filteredFlights.slice(0, 5);
-    
-    if (filteredFlights.length === 0) {
-      // Format the date description for the message
-      let dateDescription = date;
-      if (date && date.toLowerCase() === 'today') {
-        const today = new Date();
-        dateDescription = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-      } else if (date && date.toLowerCase() === 'tomorrow') {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        dateDescription = tomorrow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      // Add generated flights to the database
+      if (generatedFlights.length > 0) {
+        // Get all flights and check which flight numbers already exist
+        const existingFlights = dataManager.getFlights();
+        const existingFlightNumbers = new Set(existingFlights.map(f => f.flightNumber));
+        
+        // Only add flights that don't already exist
+        const newFlights = generatedFlights.filter(f => !existingFlightNumbers.has(f.flightNumber));
+        
+        // Update the flights list in dataManager with all flights (existing + new)
+        dataManager.setFlights([...existingFlights, ...newFlights]);
+        
+        // Update our filtered flights list to include the generated flights
+        filteredFlights = generatedFlights;
       }
-      
-      return {
-        success: false,
-        message: `No flights found from ${from} to ${to}${date ? ` on ${dateDescription}` : ''}. Please try a different date or route.`
-      };
     }
     
-    // Format flight information
-    const flightOptions = filteredFlights.map(flight => ({
-      flightNumber: flight.flightNumber,
-      departure: flight.departure,
-      arrival: flight.arrival,
-      scheduledTime: flight.scheduledTime,
-      duration: flight.duration,
-      aircraft: flight.aircraft,
-      economySeats: flight.seats.economy.filter(seat => seat.status === 'available').length,
-      businessSeats: flight.seats.business.filter(seat => seat.status === 'available').length,
-      firstClassSeats: flight.seats.first.filter(seat => seat.status === 'available').length
-    }));
-    
-    // Format the date for the message
-    let dateForMessage = date;
-    if (date && date.toLowerCase() === 'today') {
-      dateForMessage = 'today';
-    } else if (date && date.toLowerCase() === 'tomorrow') {
-      dateForMessage = 'tomorrow';
-    }
+    // Limit to max 5 flights to not overwhelm the user
+    const flightsToShow = filteredFlights.slice(0, 5);
     
     return {
       success: true,
-      message: `Found ${filteredFlights.length} flights from ${from} to ${to}${date ? ` on ${dateForMessage}` : ''}`,
-      data: {
-        flights: flightOptions
-      }
+      message: `Found ${flightsToShow.length} flights from ${from} to ${to}${date ? ` on ${date}` : ''}`,
+      data: flightsToShow
     };
   } catch (error) {
+    console.error('Error searching flights:', error);
     return {
       success: false,
-      message: `Error searching flights: ${error instanceof Error ? error.message : String(error)}`
+      message: 'An error occurred while searching for flights'
     };
   }
 };

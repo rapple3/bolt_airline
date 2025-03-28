@@ -93,7 +93,7 @@ const getRelevantData = (userMessage: string) => {
 };
 
 // Function to call the API with fallback
-async function callApiWithFallback(userMessage: string) {
+async function callApiWithFallback(userMessage: string, contextData: any, history: any[]) {
   // Try different API endpoints until one works
   const endpoints = [
     '/api/chat',
@@ -113,7 +113,11 @@ async function callApiWithFallback(userMessage: string) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ 
+          message: userMessage,
+          contextData,
+          history
+        }),
       });
       
       console.log(`Response from ${endpoint}:`, response.status);
@@ -148,27 +152,28 @@ export const getChatResponse = async (userMessage: string): Promise<{
   });
   
   try {
-    console.log('Sending request to API...');
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        message: userMessage,
-        contextData,
-        history: messageHistory
-      }),
-    });
+    console.log('Sending request to API with context...');
     
-    console.log('Response status:', response.status);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    // Keep track of max history to prevent it from growing too large
+    if (messageHistory.length > 10) {
+      // Keep only the system prompt and last 9 messages
+      const systemMessage = messageHistory.find(msg => msg.role === 'system');
+      const recentMessages = messageHistory.slice(-9);
+      messageHistory = systemMessage ? [systemMessage, ...recentMessages] : recentMessages;
     }
     
-    const data = await response.json();
-    console.log('Response data:', data);
+    // Add system message if it's not already there
+    if (!messageHistory.some(msg => msg.role === 'system')) {
+      messageHistory.unshift({
+        role: 'system',
+        content: SYSTEM_PROMPT
+      });
+    }
+    
+    // Use the fallback function to ensure we reach a working endpoint
+    const { data } = await callApiWithFallback(userMessage, contextData, messageHistory);
+    
+    console.log('Response status: OK');
     
     // Store response in history
     messageHistory.push({
@@ -182,7 +187,9 @@ export const getChatResponse = async (userMessage: string): Promise<{
     // Execute action if present
     let actionResult;
     if (actionType && params) {
+      console.log(`Executing action: ${actionType}`, params);
       actionResult = await executeAction(actionType, params);
+      console.log('Action result:', actionResult);
     }
     
     // Check for handoff keywords
