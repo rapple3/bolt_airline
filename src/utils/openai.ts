@@ -1,13 +1,7 @@
-import OpenAI from 'openai';
 import { FlightData, BookingData, LoyaltyData, UserProfile } from '../types';
 import { mockFlights, mockBookings, mockLoyalty, airlinePolicies, mockUserProfile } from '../data/mockData';
 import { dataManager } from './dataManager';
 import { executeAction, parseAction, ActionResult } from './actionHandler';
-
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
-});
 
 let messageHistory: { role: 'user' | 'assistant' | 'system', content: string }[] = [];
 
@@ -108,81 +102,52 @@ export const getChatResponse = async (userMessage: string): Promise<{
   
   // Reset history if it's too long to prevent token limit issues
   if (messageHistory.length > 10) {
-    messageHistory = [{ role: 'system', content: SYSTEM_PROMPT }];
+    messageHistory = [];
   }
-  
-  // If this is the first message, add system prompt
-  if (messageHistory.length === 0) {
-    messageHistory.push({ role: 'system', content: SYSTEM_PROMPT });
-  }
-  
-  // Add context data to user message
-  const contextPrompt = `Additional context to help you respond:
-${JSON.stringify(contextData, null, 2)}
-
-Remember to use the action directive format if the user is requesting an action.`;
   
   // Add user message to history
   messageHistory.push({
     role: 'user',
-    content: `${contextPrompt}\n\nUser's message: ${userMessage}`
+    content: userMessage
   });
   
   try {
-    const completion = await openai.chat.completions.create({
-      messages: messageHistory,
-      model: 'gpt-3.5-turbo',
-      temperature: 0.7
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: messageHistory,
+        contextData
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get response from AI');
+    }
+
+    const data = await response.json();
+    const aiResponse = data.content;
+    
+    // Store AI response in history
+    messageHistory.push({
+      role: 'assistant',
+      content: aiResponse
     });
     
-    if (!completion.choices[0].message.content) {
-      throw new Error('No response from OpenAI');
-    }
-    
-    const aiResponse = completion.choices[0].message.content;
     // Parse the response to extract actions
     const { actionType, params, content } = parseAction(aiResponse);
     
     // Check if action is present
     let actionResult: ActionResult | undefined;
-    let finalContent = content;
     
     if (actionType && params) {
       // Execute the action
       actionResult = await executeAction(actionType, params);
-      
-      // For SEARCH_FLIGHTS actions, ensure the response matches the actual results
-      if (actionType === 'SEARCH_FLIGHTS' && actionResult) {
-        const { success, message, data } = actionResult;
-        if (success && data?.flights?.length > 0) {
-          finalContent = `I've found ${data.flights.length} flights from ${params.from} to ${params.to}${params.date ? ` ${params.date.toLowerCase() === 'next week' ? 'next week' : `on ${params.date}`}` : ''}. Please review the options above and let me know which flight you'd like to book by providing the flight number.`;
-        } else {
-          finalContent = message;
-        }
-        
-        // Update message history with the corrected response
-        messageHistory.pop(); // Remove the original AI response
-        messageHistory.push({
-          role: 'assistant',
-          content: `[ACTION:SEARCH_FLIGHTS]from="${params.from}" to="${params.to}" date="${params.date}"[/ACTION]\n${finalContent}`
-        });
-      } else {
-        // Store AI response in history for non-search actions
-        messageHistory.push({
-          role: 'assistant',
-          content: aiResponse
-        });
-      }
-    } else {
-      // Store AI response in history for non-action responses
-      messageHistory.push({
-        role: 'assistant',
-        content: aiResponse
-      });
     }
     
     // Determine if agent handoff is needed
-    // Keywords that might indicate need for a human agent
     const handoffKeywords = [
       'cannot help', 'cannot assist', 'beyond my capabilities', 
       'need a human', 'agent assistance', 'speak to a representative',
@@ -190,16 +155,16 @@ Remember to use the action directive format if the user is requesting an action.
     ];
     
     const requiresHandoff = handoffKeywords.some(keyword => 
-      finalContent.toLowerCase().includes(keyword.toLowerCase())
+      content.toLowerCase().includes(keyword.toLowerCase())
     );
     
     return {
-      content: finalContent,
+      content,
       requiresHandoff,
       actionResult
     };
   } catch (error) {
-    console.error('Error calling OpenAI:', error);
+    console.error('Error calling chat API:', error);
     
     return {
       content: "I'm sorry, I encountered an error while processing your request. Please try again later.",
