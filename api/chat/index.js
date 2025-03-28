@@ -6,7 +6,7 @@ const openaiClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// System prompt for airline assistant
+// System prompt that includes instructions for action format
 const SYSTEM_PROMPT = `You are an AI assistant for an airline. Help users with their flight-related queries.
 You can perform the following actions to help users:
 
@@ -26,7 +26,15 @@ IMPORTANT BOOKING WORKFLOW:
 
 When a user asks to book a flight, FIRST use SEARCH_FLIGHTS to show them options.
 Only use BOOK_FLIGHT after they've selected a specific flight.
-Place the action directive at the beginning of your message, followed by your regular response.`;
+Place the action directive at the beginning of your message, followed by your regular response.
+
+EXAMPLE FORMATTING - THIS IS IMPORTANT:
+For a flight search, your response should look exactly like this:
+[ACTION:SEARCH_FLIGHTS]from="New York" to="London" date="2023-12-25"[/ACTION]
+I've found several flights from New York to London. Please review the options above.
+
+The action directive MUST be at the very beginning, with NO spaces or characters before it.
+`;
 
 export default async function handler(req, res) {
   // Set CORS headers for all responses
@@ -67,6 +75,13 @@ export default async function handler(req, res) {
       });
     }
     
+    console.log(`API received message: "${message.substring(0, 50)}..."`);
+    console.log('Context:', JSON.stringify({
+      hasHistory: !!history && Array.isArray(history),
+      historyLength: history?.length || 0,
+      hasContext: !!contextData
+    }, null, 2));
+    
     // Prepare messages array with system prompt
     let messages = [
       {
@@ -78,27 +93,22 @@ export default async function handler(req, res) {
     // Add history if available
     if (history && Array.isArray(history)) {
       messages = [...messages, ...history];
-    } else {
-      // If no history, just add the current message
-      messages.push({
-        role: 'user',
-        content: message
-      });
     }
+    
+    // Always add the current message
+    messages.push({
+      role: 'user',
+      content: message
+    });
     
     // Add context to last user message if available
-    if (contextData && messages.length > 1) {
-      // Find the last user message
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === 'user') {
-          // Add context to this message
-          messages[i].content = `Context: ${JSON.stringify(contextData)}\n\nUser message: ${messages[i].content}`;
-          break;
-        }
-      }
+    if (contextData) {
+      const lastMessage = messages[messages.length - 1];
+      lastMessage.content = `Context: ${JSON.stringify(contextData)}\n\nUser message: ${lastMessage.content}`;
     }
     
-    console.log('Sending to OpenAI with messages:', messages.length);
+    console.log(`Sending to OpenAI with ${messages.length} messages`);
+    console.log('Last message:', messages[messages.length - 1].content.substring(0, 100));
     
     // Call OpenAI API
     const completion = await openaiClient.chat.completions.create({
@@ -110,12 +120,16 @@ export default async function handler(req, res) {
     // Extract response
     const aiResponse = completion.choices[0].message.content || "I'm sorry, I couldn't generate a response.";
     
-    console.log('Received response from OpenAI');
+    console.log(`Received from OpenAI: "${aiResponse.substring(0, 100)}..."`);
+    
+    // Check if the response contains an action directive at the start
+    const actionDirectiveCheck = aiResponse.match(/^\s*\[ACTION:([A-Z_]+)\](.*?)\[\/ACTION\]/s);
     
     // Return response
     return res.status(200).json({
       content: aiResponse,
-      role: 'assistant'
+      role: 'assistant',
+      hasActionDirective: !!actionDirectiveCheck
     });
     
   } catch (error) {

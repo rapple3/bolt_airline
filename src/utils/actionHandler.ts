@@ -22,26 +22,58 @@ export const parseAction = (aiResponse: string): {
   params?: Record<string, string>;
   content: string;
 } => {
-  // Check if the response contains an action directive
+  console.log("Parsing action from:", aiResponse?.substring(0, 50));
+  
+  // Check if the response is a valid string
+  if (!aiResponse || typeof aiResponse !== 'string') {
+    console.warn("Invalid AI response - not a string:", aiResponse);
+    return { content: aiResponse || "" };
+  }
+  
+  // First check for action at the beginning (most common case)
+  const startActionMatch = aiResponse.match(/^\s*\[ACTION:([A-Z_]+)\](.*?)\[\/ACTION\]/s);
+  
+  if (startActionMatch) {
+    console.log("Found action at start:", startActionMatch[1]);
+    const actionType = startActionMatch[1] as ActionType;
+    const paramsString = startActionMatch[2].trim();
+    const content = aiResponse.replace(startActionMatch[0], '').trim();
+    
+    // Parse parameters if they exist
+    const params: Record<string, string> = {};
+    const paramMatches = paramsString.matchAll(/([A-Za-z_]+)="([^"]*)"/g);
+    
+    for (const match of paramMatches) {
+      params[match[1]] = match[2];
+    }
+    
+    console.log("Parsed parameters:", Object.keys(params).join(", "));
+    return { actionType, params, content };
+  }
+  
+  // Fallback to check for actions anywhere in the message
   const actionMatch = aiResponse.match(/\[ACTION:([A-Z_]+)\](.*?)\[\/ACTION\]/s);
   
-  if (!actionMatch) {
-    return { content: aiResponse };
+  if (actionMatch) {
+    console.warn("Found action but NOT at start of message - this may cause issues:", actionMatch[1]);
+    const actionType = actionMatch[1] as ActionType;
+    const paramsString = actionMatch[2].trim();
+    const content = aiResponse.replace(actionMatch[0], '').trim();
+    
+    // Parse parameters if they exist
+    const params: Record<string, string> = {};
+    const paramMatches = paramsString.matchAll(/([A-Za-z_]+)="([^"]*)"/g);
+    
+    for (const match of paramMatches) {
+      params[match[1]] = match[2];
+    }
+    
+    return { actionType, params, content };
   }
   
-  const actionType = actionMatch[1] as ActionType;
-  const paramsString = actionMatch[2].trim();
-  const content = aiResponse.replace(actionMatch[0], '').trim();
-  
-  // Parse parameters if they exist
-  const params: Record<string, string> = {};
-  const paramMatches = paramsString.matchAll(/([A-Za-z_]+)="([^"]*)"/g);
-  
-  for (const match of paramMatches) {
-    params[match[1]] = match[2];
-  }
-  
-  return { actionType, params, content };
+  // No action found, return original content
+  console.log("No action found in response");
+  return { content: aiResponse };
 };
 
 // Execute the action based on type and parameters

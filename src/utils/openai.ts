@@ -202,26 +202,36 @@ async function callApiWithFallback(userMessage: string, contextData: any, histor
   // Just use a single endpoint since it was working before
   const endpoint = '/api/chat';
   
-  console.log(`Calling API at: ${endpoint}`);
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ 
-      message: userMessage,
-      contextData,
-      history
-    }),
-  });
+  console.log(`Calling API at: ${endpoint} with message: "${userMessage.substring(0, 30)}..."`);
+  console.log('Context data:', JSON.stringify(contextData, null, 2));
+  console.log('History length:', history.length);
   
-  if (!response.ok) {
-    throw new Error(`API returned status ${response.status}`);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        message: userMessage,
+        contextData,
+        history
+      }),
+    });
+    
+    if (!response.ok) {
+      console.error(`API error: ${response.status} ${response.statusText}`);
+      throw new Error(`API returned status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log(`API response received:`, data);
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error in API call:", error);
+    throw error;
   }
-  
-  const data = await response.json();
-  return { success: true, data };
-}
+};
 
 export const getChatResponse = async (userMessage: string): Promise<{
   content: string;
