@@ -97,56 +97,90 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({ result }) => {
   const actionType = determineActionType();
   const processedFlights = isFlightSearch ? processFlightsData() : [];
 
+  // Format message based on search results
+  const getFormattedMessage = () => {
+    if (isFlightSearch && processedFlights.length > 0) {
+      const flight = processedFlights[0]; // Get first flight for info
+      let dateInfo = '';
+      
+      try {
+        const date = new Date(flight.scheduledTime);
+        dateInfo = date.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric'
+        });
+      } catch (e) {
+        // If date parsing fails, use the original message
+        return message;
+      }
+      
+      return `Found ${processedFlights.length} flights from ${flight.departure} to ${flight.arrival} on ${dateInfo}`;
+    }
+    
+    return message;
+  };
+
   return (
-    <div className={`p-4 rounded-lg border ${
+    <div className={`p-3 sm:p-4 rounded-lg border ${
       success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
     } mb-4`}>
-      <div className="flex gap-3">
-        <div className={`p-2 rounded-full ${
-          success ? 'bg-green-100' : 'bg-red-100'
-        } h-fit`}>
-          {getIcon()}
+      <div className="flex flex-col sm:flex-row sm:gap-3">
+        <div className={`flex items-center sm:block mb-2 sm:mb-0 ${
+          success ? 'text-green-700' : 'text-red-700'
+        }`}>
+          <div className={`p-2 rounded-full ${
+            success ? 'bg-green-100' : 'bg-red-100'
+          } h-fit mr-2 sm:mr-0`}>
+            {getIcon()}
+          </div>
+          <h3 className="font-medium sm:hidden">
+            {success ? 'Success' : 'Error'}
+          </h3>
         </div>
         
         <div className="flex-1">
-          <h3 className={`font-medium ${
+          <h3 className={`font-medium hidden sm:block ${
             success ? 'text-green-700' : 'text-red-700'
-          }`}>
+          } mb-1`}>
             {success ? 'Success' : 'Error'}
           </h3>
-          <p className="text-gray-600 mt-1">{message}</p>
+          <p className="text-gray-600 text-sm sm:text-base">{isFlightSearch ? getFormattedMessage() : message}</p>
           
           {/* Show flight options if this is a flight search result */}
           {isFlightSearch && !actionComplete && processedFlights.length > 0 && (
-            <FlightOptions 
-              flights={processedFlights} 
-              onSelect={handleSelectFlight}
-              actionType={actionType}
-            />
+            <div className="mt-3">
+              <h3 className="font-medium text-gray-700 text-sm sm:text-base">Available Flights:</h3>
+              <FlightOptions 
+                flights={processedFlights} 
+                onSelect={handleSelectFlight}
+                actionType={actionType}
+              />
+            </div>
           )}
           
           {/* Show action completion result if action was performed */}
           {actionComplete && actionResult && (
-            <div className={`mt-4 p-4 rounded-lg border ${
+            <div className={`mt-4 p-3 sm:p-4 rounded-lg border ${
               actionResult.success ? 'border-green-200 bg-green-100' : 'border-red-200 bg-red-100'
             }`}>
               <div className="flex items-center gap-2">
                 {actionResult.success 
-                  ? <Check className="text-green-600" /> 
-                  : <X className="text-red-600" />
+                  ? <Check className="w-4 h-4 text-green-600" /> 
+                  : <X className="w-4 h-4 text-red-600" />
                 }
-                <h4 className={`font-medium ${
+                <h4 className={`font-medium text-sm sm:text-base ${
                   actionResult.success ? 'text-green-700' : 'text-red-700'
                 }`}>
                   {actionResult.success ? 'Action Completed' : 'Action Failed'}
                 </h4>
               </div>
-              <p className="mt-2 text-gray-700">{actionResult.message}</p>
+              <p className="mt-2 text-sm sm:text-base text-gray-700">{actionResult.message}</p>
               
               {actionResult.details && (
-                <div className="mt-3 bg-white rounded border border-gray-100 p-3">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Details</h4>
-                  <dl className="grid grid-cols-2 gap-2 text-sm">
+                <div className="mt-3 bg-white rounded border border-gray-100 p-2 sm:p-3">
+                  <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Details</h4>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-xs sm:text-sm">
                     {Object.entries(actionResult.details).map(([key, value]) => (
                       <React.Fragment key={key}>
                         <dt className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}</dt>
@@ -161,9 +195,9 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({ result }) => {
           
           {/* Render generic action details for other action types */}
           {success && data && !isFlightSearch && !actionComplete && (
-            <div className="mt-3 bg-white rounded border border-gray-100 p-3">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Details</h4>
-              <dl className="grid grid-cols-2 gap-2 text-sm">
+            <div className="mt-3 bg-white rounded border border-gray-100 p-2 sm:p-3">
+              <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Details</h4>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-xs sm:text-sm">
                 {Object.entries(data).map(([key, value]) => (
                   <React.Fragment key={key}>
                     <dt className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}</dt>

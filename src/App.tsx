@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plane, RotateCcw, Search, MapPin } from 'lucide-react';
+import { Plane, RotateCcw, Search, MapPin, Menu, X, User } from 'lucide-react';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
 import UserProfileCard from './components/UserProfileCard';
@@ -21,6 +21,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showHandoffModal, setShowHandoffModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(dataManager.getUserProfile());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Subscribe to user profile changes
@@ -43,6 +44,8 @@ function App() {
     
     // Update the data manager with the new user
     dataManager.setUserProfile(profile);
+    // Close sidebar on mobile after selection
+    setSidebarOpen(false);
   };
 
   const handleAgentHandoff = (reason: string) => {
@@ -129,6 +132,8 @@ function App() {
         timestamp: new Date()
       }
     ]);
+    // Close sidebar on mobile after action
+    setSidebarOpen(false);
   };
 
   // Directly trigger a flight search for testing
@@ -145,6 +150,8 @@ function App() {
     
     // Send the message through the normal flow
     await handleSendMessage(searchQuery);
+    // Close sidebar on mobile after action
+    setSidebarOpen(false);
   };
 
   // Directly trigger a test for uncommon route search
@@ -163,6 +170,8 @@ function App() {
     
     // Send the message through the normal flow
     await handleSendMessage(searchQuery);
+    // Close sidebar on mobile after action
+    setSidebarOpen(false);
   };
 
   return (
@@ -170,19 +179,63 @@ function App() {
       {/* Header with logo and user selector */}
       <header className="bg-white border-b border-gray-200 py-4 px-6 flex justify-between items-center">
         <div className="flex items-center">
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden mr-2 p-1 rounded hover:bg-gray-100"
+            aria-label="Toggle sidebar"
+          >
+            <Menu className="w-5 h-5 text-gray-600" />
+          </button>
           <Plane className="text-blue-500 w-6 h-6 mr-2" />
           <h1 className="text-xl font-semibold text-gray-800">Bolt Airlines</h1>
         </div>
-        <UserSelector 
-          currentUserId={currentUser.id}
-          onSelectUser={handleUserSelect}
-        />
+        <div className="flex items-center">
+          <div className="md:hidden flex items-center">
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-1 rounded-full bg-blue-100 text-blue-500"
+            >
+              <User className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="hidden md:block">
+            <UserSelector 
+              currentUserId={currentUser.id}
+              onSelectUser={handleUserSelect}
+            />
+          </div>
+        </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div 
+            className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-10"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
         {/* Left sidebar with user profile */}
-        <aside className="w-80 border-r border-gray-200 bg-white p-4 flex flex-col">
+        <aside className={`
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+          md:translate-x-0
+          fixed md:relative z-20 h-[calc(100%-64px)] md:h-auto
+          w-[280px] md:w-80 border-r border-gray-200 bg-white p-4 
+          flex flex-col transition-transform duration-300 ease-in-out
+        `}>
+          <div className="flex justify-between items-center md:hidden mb-4">
+            <h2 className="font-medium text-gray-800">User Profile</h2>
+            <button 
+              onClick={() => setSidebarOpen(false)}
+              className="p-1 rounded hover:bg-gray-100"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+          
           <UserProfileCard profile={currentUser} />
+          
           <div className="mt-4 space-y-2">
             <button
               onClick={handleResetData}
@@ -207,6 +260,13 @@ function App() {
               <MapPin className="w-4 h-4 mr-2" />
               Test Uncommon Routes
             </button>
+          </div>
+          
+          <div className="mt-4 md:hidden">
+            <UserSelector 
+              currentUserId={currentUser.id}
+              onSelectUser={handleUserSelect}
+            />
           </div>
         </aside>
 

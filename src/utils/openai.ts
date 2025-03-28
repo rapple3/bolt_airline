@@ -175,14 +175,17 @@ export const getChatResponse = async (userMessage: string): Promise<{
     
     console.log('Response status: OK');
     
-    // Store response in history
-    messageHistory.push({
-      role: 'assistant',
-      content: data.content
-    });
-    
     // Parse for actions
     const { actionType, params, content } = parseAction(data.content);
+    
+    // For SEARCH_FLIGHTS actions, we'll modify how we handle the text content
+    let displayContent = content || data.content;
+    
+    // Store either the modified or original response in history
+    messageHistory.push({
+      role: 'assistant',
+      content: data.content // Always store the original full content with actions
+    });
     
     // Execute action if present
     let actionResult;
@@ -190,6 +193,16 @@ export const getChatResponse = async (userMessage: string): Promise<{
       console.log(`Executing action: ${actionType}`, params);
       actionResult = await executeAction(actionType, params);
       console.log('Action result:', actionResult);
+      
+      // For flight search, we want to remove redundant text and let the UI component handle the display
+      if (actionType === 'SEARCH_FLIGHTS' && actionResult?.success) {
+        // If the text is just repeating info that will be shown in the flight results card,
+        // we can simplify it or replace it entirely
+        if (displayContent.toLowerCase().includes('found') && displayContent.toLowerCase().includes('flight')) {
+          // Either remove the content entirely and let the UI show it, or provide a simple prompt
+          displayContent = 'Here are the flights I found for you. Please select one to continue.';
+        }
+      }
     }
     
     // Check for handoff keywords
@@ -204,7 +217,7 @@ export const getChatResponse = async (userMessage: string): Promise<{
     );
     
     return {
-      content: content || data.content,
+      content: displayContent,
       requiresHandoff,
       actionResult
     };
