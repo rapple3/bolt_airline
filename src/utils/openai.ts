@@ -130,22 +130,32 @@ export const getChatResponse = async (userMessage: string): Promise<{
       }),
     });
 
-    let errorData;
+    console.log('Response status:', response.status);
+    
+    // Check if the response is JSON
     const contentType = response.headers.get("content-type");
+    let responseData;
+    
     if (contentType && contentType.indexOf("application/json") !== -1) {
-      errorData = await response.json();
+      responseData = await response.json();
+      console.log('JSON response received:', responseData);
     } else {
-      const text = await response.text();
-      console.error('Non-JSON response:', text);
-      throw new Error('Received non-JSON response from server');
+      const textResponse = await response.text();
+      console.error('Non-JSON response:', textResponse);
+      throw new Error(`Received non-JSON response: ${textResponse.substring(0, 100)}...`);
     }
 
     if (!response.ok) {
-      console.error('API Error:', errorData);
-      throw new Error(errorData.error || `Server error: ${response.status}`);
+      console.error('API Error:', responseData);
+      throw new Error(responseData.error || `Server error: ${response.status}`);
     }
 
-    const aiResponse = errorData.content;
+    if (!responseData.content) {
+      console.error('Invalid response format:', responseData);
+      throw new Error('Response missing content field');
+    }
+
+    const aiResponse = responseData.content;
     
     // Store AI response in history
     messageHistory.push({
@@ -183,8 +193,25 @@ export const getChatResponse = async (userMessage: string): Promise<{
   } catch (error: any) {
     console.error('Error calling chat API:', error);
     
+    // Better error handling to prevent [object Object] in the error message
+    let errorMessage = 'Unknown error';
+    
+    try {
+      if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error.message) {
+        errorMessage = String(error.message);
+      } else if (error.details) {
+        errorMessage = String(error.details);
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
+    } catch (e) {
+      errorMessage = 'Error occurred, but could not extract details';
+    }
+    
     return {
-      content: `I'm sorry, I encountered an error while processing your request: ${error.message || 'Unknown error'}. Please try again later.`,
+      content: `I'm sorry, I encountered an error while processing your request: ${errorMessage}. Please try again later.`,
       requiresHandoff: true
     };
   }

@@ -34,6 +34,9 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  // Log API key status (don't log the actual key)
+  console.log('OpenAI API key status:', process.env.OPENAI_API_KEY ? 'Set' : 'Not set');
+  
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -85,12 +88,17 @@ export default async function handler(
       }
     }
 
+    // Log that we're sending the request to OpenAI
+    console.log('Sending request to OpenAI API with message count:', messages.length);
+    
     const completion = await openai.chat.completions.create({
       messages,
       model: 'gpt-3.5-turbo',
       temperature: 0.7,
     });
 
+    console.log('Received response from OpenAI');
+    
     if (!completion.choices[0].message.content) {
       throw new Error('No response from OpenAI');
     }
@@ -102,9 +110,26 @@ export default async function handler(
 
   } catch (error: any) {
     console.error('Error processing request:', error);
+    
+    // Check for specific OpenAI error types
+    if (error.name === 'AuthenticationError') {
+      return res.status(500).json({ 
+        error: 'OpenAI API key is invalid',
+        details: 'Authentication with OpenAI failed'
+      });
+    }
+    
+    if (error.name === 'RateLimitError') {
+      return res.status(429).json({ 
+        error: 'OpenAI rate limit exceeded',
+        details: 'The API rate limit has been hit'
+      });
+    }
+    
+    // For any other error
     return res.status(500).json({ 
       error: 'Internal server error',
-      details: error.message
+      details: error.message || 'Unknown error occurred'
     });
   }
 } 
