@@ -3,13 +3,20 @@ import { Message } from '../types';
 import { User, Bot } from 'lucide-react';
 import { format } from 'date-fns';
 import { ActionResultCard } from './ActionResult';
+import { BookingConfirmation } from './BookingConfirmation';
 
 interface ChatMessageProps {
   message: Message;
+  onConfirmBooking?: (flightNumber: string, seatClass: string) => void;
+  onCancelBooking?: () => void;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
-  const { type, content, timestamp, actionResult } = message;
+export const ChatMessage: React.FC<ChatMessageProps> = ({ 
+  message,
+  onConfirmBooking,
+  onCancelBooking
+}) => {
+  const { type, content, timestamp, actionResult, pendingConfirmation } = message;
 
   return (
     <div className={`flex gap-3 ${type === 'user' ? 'justify-end' : ''}`}>
@@ -29,6 +36,30 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
         >
           <p className="whitespace-pre-wrap">{content}</p>
         </div>
+        
+        {/* Display booking confirmation if present */}
+        {type === 'bot' && pendingConfirmation && pendingConfirmation.type === 'BOOK_FLIGHT' && (
+          <div className="mt-2">
+            <BookingConfirmation
+              flightNumber={pendingConfirmation.flightNumber}
+              seatClass={pendingConfirmation.seatClass}
+              flightDetails={pendingConfirmation.flightDetails}
+              onConfirm={() => {
+                if (onConfirmBooking) {
+                  onConfirmBooking(
+                    pendingConfirmation.flightNumber, 
+                    pendingConfirmation.seatClass
+                  );
+                }
+              }}
+              onCancel={() => {
+                if (onCancelBooking) {
+                  onCancelBooking();
+                }
+              }}
+            />
+          </div>
+        )}
         
         {/* Display action result if present */}
         {type === 'bot' && actionResult && (

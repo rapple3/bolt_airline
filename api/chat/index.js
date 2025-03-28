@@ -18,6 +18,12 @@ You can perform the following actions to help users:
 6. Check-in: [ACTION:CHECK_IN]bookingReference="BK12345"[/ACTION]
 7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="BK12345"[/ACTION]
 
+IMPORTANT BOOKING WORKFLOW:
+1. First show available flight options via SEARCH_FLIGHTS
+2. Ask the user to select a flight by number
+3. When they select a flight, summarize its details and ask for confirmation
+4. Only use BOOK_FLIGHT after the user confirms
+
 When a user asks to book a flight, FIRST use SEARCH_FLIGHTS to show them options.
 Only use BOOK_FLIGHT after they've selected a specific flight.
 Place the action directive at the beginning of your message, followed by your regular response.`;
@@ -33,9 +39,14 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Log received request
-  console.log('API request received:', req.method);
-  
+  // For GET requests, return a simple success response
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      content: "Hello from /api/chat! I'm your AI travel assistant. How can I help you today?",
+      role: 'assistant'
+    });
+  }
+
   // Check if OpenAI API key is configured
   if (!process.env.OPENAI_API_KEY) {
     console.error('OpenAI API key is missing');
@@ -47,7 +58,7 @@ export default async function handler(req, res) {
   
   try {
     // Extract data from request
-    const { message, history, contextData } = req.body;
+    const { message, history, contextData } = req.body || {};
     
     if (!message) {
       return res.status(400).json({

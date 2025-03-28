@@ -95,7 +95,8 @@ function App() {
         type: 'bot',
         content: response.content,
         timestamp: new Date(),
-        actionResult: response.actionResult
+        actionResult: response.actionResult,
+        pendingConfirmation: response.pendingConfirmation
       };
 
       setMessages(prev => [...prev, botMessage]);
@@ -172,6 +173,102 @@ function App() {
     await handleSendMessage(searchQuery);
     // Close sidebar on mobile after action
     setSidebarOpen(false);
+  };
+
+  const handleConfirmBooking = (flightNumber: string, seatClass: string) => {
+    // Get flight details from messages with pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'BOOK_FLIGHT'
+    );
+    
+    if (!pendingMessage?.pendingConfirmation) {
+      return;
+    }
+    
+    const { flightDetails } = pendingMessage.pendingConfirmation;
+    const validClass = seatClass as 'economy' | 'business' | 'first';
+    
+    // Execute the booking action
+    const success = dataManager.createBooking(flightNumber, validClass);
+    
+    if (!success) {
+      // Show error message
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'bot',
+          content: 'Sorry, there was an error booking your flight. Please try again.',
+          timestamp: new Date()
+        }
+      ]);
+      return;
+    }
+    
+    // Get the newly created booking
+    const userBookings = dataManager.getBookings();
+    const bookingId = userBookings.length > 0 ? userBookings[userBookings.length - 1].bookingReference : 'Unknown';
+    
+    // Add confirmation message
+    const confirmationMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: `Your booking for flight ${flightNumber} has been confirmed!`,
+      timestamp: new Date(),
+      actionResult: {
+        success: true,
+        message: `Successfully booked flight ${flightNumber} in ${validClass} class`,
+        data: {
+          flightNumber,
+          passenger: currentUser.name,
+          seatClass: validClass,
+          from: flightDetails.departure,
+          to: flightDetails.arrival,
+          date: new Date(flightDetails.scheduledTime).toLocaleDateString(),
+          bookingId
+        }
+      }
+    };
+    
+    // Update messages and remove pending confirmation from the previous message
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat(confirmationMessage);
+    });
+  };
+
+  const handleCancelBooking = () => {
+    // Find the message with the pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'BOOK_FLIGHT'
+    );
+    
+    if (!pendingMessage) {
+      return;
+    }
+    
+    // Update messages to remove pending confirmation
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat({
+        id: Date.now().toString(),
+        type: 'bot',
+        content: 'Booking has been cancelled. Is there anything else I can help you with?',
+        timestamp: new Date()
+      });
+    });
   };
 
   return (
@@ -275,7 +372,12 @@ function App() {
           {/* Chat messages */}
           <div className="flex-1 overflow-y-auto p-4">
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
+              <ChatMessage 
+                key={message.id} 
+                message={message} 
+                onConfirmBooking={handleConfirmBooking}
+                onCancelBooking={handleCancelBooking}
+              />
             ))}
             {isLoading && (
               <div className="flex justify-center items-center py-2">

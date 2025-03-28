@@ -6,6 +6,12 @@ export interface Message {
   content: string;
   timestamp: Date;
   actionResult?: ActionResult;
+  pendingConfirmation?: {
+    type: 'BOOK_FLIGHT';
+    flightNumber: string;
+    seatClass: 'economy' | 'business' | 'first';
+    flightDetails: FlightData;
+  };
 }
 
 export interface SeatInfo {
