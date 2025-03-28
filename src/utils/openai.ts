@@ -138,13 +138,68 @@ export const getChatResponse = async (userMessage: string): Promise<{
   requiresHandoff: boolean;
   actionResult?: any;
 }> => {
+  // Get contextual data based on user message
+  const contextData = getRelevantData(userMessage);
+  
+  // Add user message to history
+  messageHistory.push({
+    role: 'user',
+    content: userMessage
+  });
+  
   try {
-    console.log('Attempting to call API with fallback...');
-    const { data } = await callApiWithFallback(userMessage);
-
+    console.log('Sending request to API...');
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        message: userMessage,
+        contextData,
+        history: messageHistory
+      }),
+    });
+    
+    console.log('Response status:', response.status);
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Response data:', data);
+    
+    // Store response in history
+    messageHistory.push({
+      role: 'assistant',
+      content: data.content
+    });
+    
+    // Parse for actions
+    const { actionType, params, content } = parseAction(data.content);
+    
+    // Execute action if present
+    let actionResult;
+    if (actionType && params) {
+      actionResult = await executeAction(actionType, params);
+    }
+    
+    // Check for handoff keywords
+    const handoffKeywords = [
+      'cannot help', 'cannot assist', 'beyond my capabilities',
+      'need a human', 'agent assistance', 'speak to a representative',
+      'complex issue', 'escalate', 'human support'
+    ];
+    
+    const requiresHandoff = handoffKeywords.some(keyword => 
+      data.content.toLowerCase().includes(keyword.toLowerCase())
+    );
+    
     return {
-      content: data.content,
-      requiresHandoff: false,
+      content: content || data.content,
+      requiresHandoff,
+      actionResult
     };
   } catch (error: any) {
     console.error('Error calling API:', error);
