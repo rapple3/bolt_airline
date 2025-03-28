@@ -1,4 +1,4 @@
-module.exports = (req, res) => {
+export default function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,8 +15,8 @@ module.exports = (req, res) => {
   }
 
   // Return static response
-  return res.status(200).json({
+  res.status(200).json({
     content: "Hello! I'm your AI travel assistant. How can I help you today?",
     role: 'assistant'
   });
-}; 
+} 

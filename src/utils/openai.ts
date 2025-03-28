@@ -98,8 +98,8 @@ export const getChatResponse = async (userMessage: string): Promise<{
   actionResult?: any;
 }> => {
   try {
-    console.log('Sending request to simplified API...');
-    const response = await fetch('/api/chat.js', {
+    console.log('Sending request to Next.js API route...');
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -108,17 +108,26 @@ export const getChatResponse = async (userMessage: string): Promise<{
     });
 
     console.log('Response received:', response.status);
-    const data = await response.json();
-    console.log('Response data:', data);
+    
+    // Handle non-JSON responses
+    try {
+      const data = await response.json();
+      console.log('Response data:', data);
 
-    return {
-      content: data.content,
-      requiresHandoff: false,
-    };
-  } catch (error) {
+      return {
+        content: data.content,
+        requiresHandoff: false,
+      };
+    } catch (jsonError) {
+      // If JSON parsing fails, try to get text
+      const text = await response.text();
+      console.error('Failed to parse JSON response:', text);
+      throw new Error(`Invalid JSON response: ${text.substring(0, 100)}...`);
+    }
+  } catch (error: any) {
     console.error('Error:', error);
     return {
-      content: 'Sorry, there was an error processing your request.',
+      content: `Sorry, there was an error processing your request: ${error.message || 'Unknown error'}`,
       requiresHandoff: true,
     };
   }
