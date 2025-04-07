@@ -14,7 +14,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([{
     id: '1',
     type: 'bot',
-    content: "Hello! I'm your AI travel assistant. How can I help you today?",
+    content: "Hi there! I'm Bolt Assistant, your friendly AI travel companion at Bolt Airlines. I'm here to make your travel experience amazing! How can I help you today? Whether you need to book a flight, check your reservation, or get travel information - I'm excited to assist you!",
     timestamp: new Date()
   }]);
   const [handoff, setHandoff] = useState<AgentHandoff | null>(null);
@@ -37,7 +37,7 @@ function App() {
     setMessages([{
       id: '1',
       type: 'bot',
-      content: `Hello ${profile.name}! I'm your AI travel assistant. How can I help you today?`,
+      content: `Hello ${profile.name}! I'm Bolt Assistant, your friendly AI travel companion. It's great to see you today! How can I help make your travel experience with Bolt Airlines amazing?`,
       timestamp: new Date()
     }]);
     resetChatHistory();
@@ -70,7 +70,7 @@ function App() {
     setMessages([{
       id: '1',
       type: 'bot',
-      content: `Hello ${currentUser.name}! I'm your AI travel assistant. How can I help you today?`,
+      content: `Hello ${currentUser.name}! I'm Bolt Assistant, your friendly AI travel companion. It's great to see you today! How can I help make your travel experience with Bolt Airlines amazing?`,
       timestamp: new Date()
     }]);
     resetChatHistory();
