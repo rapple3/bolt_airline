@@ -46,16 +46,27 @@ You can perform the following actions to help users:
 7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="BK12345"[/ACTION]
 
 IMPORTANT WORKFLOW:
+- Never directly execute booking, cancellation, or flight changes without first getting explicit confirmation
 - When a user asks to book a flight, FIRST use SEARCH_FLIGHTS to show them options
-- Only use BOOK_FLIGHT after they've selected a specific flight
+- Only use BOOK_FLIGHT after they've selected a specific flight AND explicitly confirmed they want to book it
 - When a user asks to change their flight, FIRST use SEARCH_FLIGHTS to show them alternatives
-- Only use CHANGE_FLIGHT after they've selected a specific flight
+- Only use CHANGE_FLIGHT after they've selected a specific flight AND explicitly confirmed
 
-IMPORTANT BOOKING WORKFLOW:
-1. First show available flight options via SEARCH_FLIGHTS
-2. Ask the user to select a flight by number in a friendly, helpful way
-3. When they select a flight, enthusiastically summarize its details and ask for confirmation
-4. Only use BOOK_FLIGHT after the user confirms
+MANDATORY CONFIRMATION PROCESS - VERY IMPORTANT:
+1. BOOKING:
+   - After user selects a flight, show a summary (don't use BOOK_FLIGHT yet)
+   - Ask "Would you like me to go ahead and book this flight for you?"
+   - Only use BOOK_FLIGHT action after user explicitly confirms with "yes", "book it", etc.
+
+2. CANCELLATION:
+   - When user asks to cancel, don't use CANCEL_BOOKING yet
+   - Show a warning and ask "Are you sure you want to cancel this booking? This cannot be undone."
+   - Only use CANCEL_BOOKING action after user explicitly confirms
+
+3. FLIGHT CHANGE:
+   - After user selects a new flight, show details of the change (don't use CHANGE_FLIGHT yet)
+   - Ask "Would you like me to confirm this flight change for you?"
+   - Only use CHANGE_FLIGHT action after user explicitly confirms
 
 CUSTOMER SERVICE PRINCIPLES:
 - Always acknowledge the customer's feelings and validate their concerns
@@ -254,10 +265,13 @@ export const getChatResponse = async (userMessage: string): Promise<{
   requiresHandoff: boolean;
   actionResult?: any;
   pendingConfirmation?: {
-    type: 'BOOK_FLIGHT';
-    flightNumber: string;
-    seatClass: 'economy' | 'business' | 'first';
-    flightDetails: FlightData;
+    type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT';
+    flightNumber?: string;
+    seatClass?: 'economy' | 'business' | 'first';
+    flightDetails?: FlightData;
+    bookingReference?: string;
+    newFlightNumber?: string;
+    newFlightDetails?: FlightData;
   };
 }> => {
   // Get contextual data based on user message
@@ -389,6 +403,80 @@ Would you like me to confirm this booking?`;
         } else {
           // Flight not found
           displayContent = `I couldn't find flight ${flightNumber} in our system. Please check the flight number and try again.`;
+        }
+      } else if (actionType === 'CANCEL_BOOKING' && !isConfirming) {
+        // Extract booking reference
+        const { bookingReference } = params;
+        
+        // Find the booking details
+        const bookings = dataManager.getBookings();
+        const booking = bookings.find(b => b.bookingReference === bookingReference);
+        
+        if (booking) {
+          // Create a confirmation message with booking details
+          displayContent = `I see you want to cancel booking ${bookingReference}. This action cannot be undone.
+
+Are you sure you want to cancel this booking?`;
+          
+          // Return the pending confirmation
+          pendingConfirmation = {
+            type: 'CANCEL_BOOKING' as const,
+            bookingReference
+          };
+        } else {
+          // Booking not found
+          displayContent = `I couldn't find booking ${bookingReference} in our system. Please check the booking reference and try again.`;
+        }
+      } else if (actionType === 'CHANGE_FLIGHT' && !isConfirming) {
+        // Extract booking reference and new flight number
+        const { bookingReference, newFlightNumber } = params;
+        
+        // Find the booking details
+        const bookings = dataManager.getBookings();
+        const booking = bookings.find(b => b.bookingReference === bookingReference);
+        
+        // Find the new flight details
+        const newFlight = dataManager.getFlights().find(f => f.flightNumber === newFlightNumber);
+        
+        if (booking && newFlight) {
+          // Get current flight details
+          const currentFlight = dataManager.getFlights().find(f => f.flightNumber === booking.flightNumber);
+          
+          // Format new flight details
+          const departureDate = new Date(newFlight.scheduledTime);
+          const formattedDate = departureDate.toLocaleDateString('en-US', { 
+            weekday: 'long',
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+          const formattedTime = departureDate.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          // Create a confirmation message with flight change details
+          displayContent = `I see you want to change your booking ${bookingReference} from flight ${booking.flightNumber} to flight ${newFlightNumber}.
+
+The new flight departs from ${newFlight.departure} on ${formattedDate} at ${formattedTime} and arrives at ${newFlight.arrival}.
+The flight duration is ${newFlight.duration}.
+
+Would you like me to confirm this flight change?`;
+          
+          // Return the pending confirmation
+          pendingConfirmation = {
+            type: 'CHANGE_FLIGHT' as const,
+            bookingReference,
+            flightNumber: booking.flightNumber,
+            newFlightNumber,
+            newFlightDetails: newFlight
+          };
+        } else if (!booking) {
+          // Booking not found
+          displayContent = `I couldn't find booking ${bookingReference} in our system. Please check the booking reference and try again.`;
+        } else if (!newFlight) {
+          // New flight not found
+          displayContent = `I couldn't find flight ${newFlightNumber} in our system. Please check the flight number and try again.`;
         }
       } else if (actionType === 'SEARCH_FLIGHTS') {
         // Execute the search
