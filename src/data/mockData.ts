@@ -302,6 +302,10 @@ const generateUserProfile = (customerId: string, bookings: BookingData[]): UserP
     };
   });
   
+  // Properly type the seat preference
+  const seatPreferenceOptions: ('window' | 'aisle' | 'middle')[] = ['window', 'aisle', 'middle'];
+  const mealPreferenceOptions = ['regular', 'vegetarian', 'kosher', 'halal', 'gluten-free'];
+  
   return {
     customerId: customer.id,
     name: customer.name,
@@ -310,8 +314,8 @@ const generateUserProfile = (customerId: string, bookings: BookingData[]): UserP
     loyaltyTier: loyalty.tier,
     loyaltyPoints: loyalty.points,
     preferences: {
-      seatPreference: ['window', 'aisle', 'middle'][Math.floor(Math.random() * 2)],
-      mealPreference: ['regular', 'vegetarian', 'kosher', 'halal', 'gluten-free'][Math.floor(Math.random() * 5)],
+      seatPreference: seatPreferenceOptions[Math.floor(Math.random() * seatPreferenceOptions.length)],
+      mealPreference: mealPreferenceOptions[Math.floor(Math.random() * mealPreferenceOptions.length)],
       specialAssistance: Math.random() > 0.8
     },
     upcomingFlights,

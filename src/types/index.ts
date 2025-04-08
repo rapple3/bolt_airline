@@ -9,7 +9,7 @@ export interface Message {
   pendingConfirmation?: {
     type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT';
     flightNumber?: string;
-    seatClass?: 'economy' | 'business' | 'first';
+    seatClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
     flightDetails?: FlightData;
     bookingReference?: string;
     newFlightNumber?: string;
