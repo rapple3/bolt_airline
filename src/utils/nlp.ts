@@ -16,7 +16,7 @@ export function analyzeIntent(input: string): Intent {
         flightNumber: flightMatch?.[0] || '',
         seatPreference: lowercaseInput.includes('window') ? 'window' : 
                         lowercaseInput.includes('aisle') ? 'aisle' : 
-                        lowercaseInput.includes('middle') ? 'middle' : 'any',
+                        lowercaseInput.includes('middle') ? 'middle' : 'aisle',
         classUpgrade: lowercaseInput.includes('comfort plus') || lowercaseInput.includes('comfort+') ? 'comfortPlus' :
                       lowercaseInput.includes('first') ? 'first' :
                       lowercaseInput.includes('delta one') ? 'deltaOne' : ''
@@ -35,7 +35,7 @@ export function analyzeIntent(input: string): Intent {
         flightNumber: 'DL1001',
         seatPreference: lowercaseInput.includes('window') ? 'window' : 
                         lowercaseInput.includes('aisle') ? 'aisle' : 
-                        lowercaseInput.includes('middle') ? 'middle' : 'any',
+                        lowercaseInput.includes('middle') ? 'middle' : 'aisle',
         classUpgrade: lowercaseInput.includes('comfort') ? 'comfortPlus' :
                       lowercaseInput.includes('first') ? 'first' :
                       lowercaseInput.includes('delta one') ? 'deltaOne' : ''

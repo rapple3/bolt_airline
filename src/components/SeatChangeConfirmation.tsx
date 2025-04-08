@@ -24,7 +24,7 @@ interface SeatChangeConfirmationProps {
   bookingReference: string;
   bookingDetails?: BookingData;
   targetClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
-  seatPreference?: 'window' | 'middle' | 'aisle' | 'any';
+  seatPreference?: 'window' | 'middle' | 'aisle';
   onConfirm: (seatNumber: string, upgradeTier?: string) => void;
   onCancel: () => void;
 }
@@ -50,8 +50,8 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
   const [flight, setFlight] = useState<FlightData | null>(null);
   const [upgradeConfirmed, setUpgradeConfirmed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [loyaltyVerified, setLoyaltyVerified] = useState(false);
-  const [skymiles, setSkymiles] = useState('');
+  const [loyaltyVerified, setLoyaltyVerified] = useState(true);
+  const [selectedUpgradeTier, setSelectedUpgradeTier] = useState<string>('');
 
   useEffect(() => {
     // Load flight and seats
@@ -121,17 +121,6 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
     }
   }, [userProfile]);
   
-  const handleLoyaltyVerification = () => {
-    // Mock loyalty verification
-    setLoading(true);
-    setTimeout(() => {
-      // In a real app, we would verify against a database
-      // For demo purposes, set to true and use current profile
-      setLoyaltyVerified(true);
-      setLoading(false);
-    }, 1000);
-  };
-  
   const handleSeatSelect = (seatNumber: string) => {
     setSelectedSeat(seatNumber);
   };
@@ -141,11 +130,12 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
       alert('Please select a seat first.');
       return;
     }
+    setSelectedUpgradeTier(tier);
     setUpgradeConfirmed(true);
   };
   
   const handleFinalConfirmation = () => {
-    onConfirm(selectedSeat, upgradeConfirmed ? upgradeOptions[0]?.tier : undefined);
+    onConfirm(selectedSeat, upgradeConfirmed ? selectedUpgradeTier : undefined);
   };
   
   const getTierColor = (tier: string): string => {
@@ -173,110 +163,88 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
         <h3 className="font-medium text-gray-800">Seat Change Request for Booking {bookingReference}</h3>
       </div>
       
-      {!loyaltyVerified ? (
-        <div className={styles.loyaltySection}>
-          <p>To check upgrade eligibility, please enter your SkyMiles number:</p>
-          <div className="flex gap-2 mt-2">
-            <input
-              value={skymiles}
-              onChange={(e) => setSkymiles(e.target.value)}
-              placeholder="Enter SkyMiles number"
-              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-            <button 
-              onClick={handleLoyaltyVerification}
-              className="bg-blue-500 text-white rounded-md px-4 py-2 text-sm hover:bg-blue-600"
-            >
-              Verify Status
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className={styles.statusBar}>
-            <h4 className="text-sm font-medium text-gray-700">SkyMiles Status:</h4>
-            <span className={`text-sm font-medium capitalize ${getTierColor(userProfile.loyaltyTier)}`}>
-              {userProfile.loyaltyTier} Medallion
-            </span>
-          </div>
-          
-          <div className={styles.seatSelection}>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Available {targetClass} Seats ({seatPreference} preference):</h4>
-            {availableSeats.length > 0 ? (
-              <div className={styles.seatGrid}>
-                {availableSeats
-                  .filter(seat => seat.available && (seatPreference === 'any' || seat.type === seatPreference))
-                  .map(seat => (
-                    <div 
-                      key={seat.number}
-                      className={`${styles.seat} ${selectedSeat === seat.number ? styles.selected : ''}`}
-                      onClick={() => handleSeatSelect(seat.number)}
-                    >
-                      <span className="font-medium">{seat.number}</span>
-                      <span className="text-xs text-gray-500 capitalize">{seat.type}</span>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <p className="text-sm text-red-600 mb-4">No {seatPreference} seats available in {targetClass}. Try another preference or class.</p>
-            )}
-          </div>
-          
-          {selectedSeat && (
-            <div className={styles.upgradeSection}>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Upgrade Options:</h4>
-              {upgradeOptions.length > 0 ? (
-                <div className={styles.upgradeOptions}>
-                  {upgradeOptions.map((option, idx) => (
-                    <div key={idx} className={styles.upgradeOption}>
-                      <span className="text-sm">
-                        {option.tier} - {option.complimentary ? 
-                          <span className="text-green-600">Complimentary (Medallion Benefit)</span> : 
-                          <span className="text-blue-600">${option.price}</span>}
-                      </span>
-                      <button 
-                        onClick={() => handleConfirmUpgrade(option.tier)}
-                        className="bg-blue-500 text-white rounded-md px-4 py-2 text-sm hover:bg-blue-600"
-                      >
-                        {option.complimentary ? 'Request Upgrade' : 'Purchase Upgrade'}
-                      </button>
-                    </div>
-                  ))}
+      <div className={styles.statusBar}>
+        <h4 className="text-sm font-medium text-gray-700">SkyMiles Status:</h4>
+        <span className={`text-sm font-medium capitalize ${getTierColor(userProfile.loyaltyTier)}`}>
+          {userProfile.loyaltyTier} Medallion
+        </span>
+      </div>
+      
+      <div className={styles.seatSelection}>
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Available {targetClass} Seats ({seatPreference} preference):</h4>
+        {availableSeats.length > 0 ? (
+          <div className={styles.seatGrid}>
+            {availableSeats
+              .filter(seat => seat.available && seat.type === seatPreference)
+              .map(seat => (
+                <div 
+                  key={seat.number}
+                  className={`${styles.seat} ${selectedSeat === seat.number ? styles.selected : ''}`}
+                  onClick={() => handleSeatSelect(seat.number)}
+                >
+                  <span className="font-medium">{seat.number}</span>
+                  <span className="text-xs text-gray-500 capitalize">{seat.type}</span>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-600">No upgrade options available for your status.</p>
-              )}
-            </div>
-          )}
-          
-          {upgradeConfirmed && (
-            <div className={styles.confirmation}>
-              <h5 className="font-medium text-green-800 mb-1">Upgrade Request Confirmed</h5>
-              <p className="text-sm text-green-700">
-                Your upgrade will be processed 72 hours before departure based on availability.
-              </p>
-            </div>
-          )}
-          
-          <div className={styles.actions}>
-            <button 
-              className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors flex justify-center items-center"
-              onClick={onCancel}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancel
-            </button>
-            <button 
-              disabled={!selectedSeat} 
-              onClick={handleFinalConfirmation}
-              className={`flex-1 py-2 px-4 ${!selectedSeat ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-md transition-colors flex justify-center items-center`}
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Confirm Seat Change
-            </button>
+              ))}
           </div>
-        </>
+        ) : (
+          <p className="text-sm text-red-600 mb-4">No {seatPreference} seats available in {targetClass}. Try another preference or class.</p>
+        )}
+      </div>
+      
+      {selectedSeat && (
+        <div className={styles.upgradeSection}>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Upgrade Options:</h4>
+          {upgradeOptions.length > 0 ? (
+            <div className={styles.upgradeOptions}>
+              {upgradeOptions.map((option, idx) => (
+                <div key={idx} className={styles.upgradeOption}>
+                  <span className="text-sm">
+                    {option.tier} - {option.complimentary ? 
+                      <span className="text-green-600">Complimentary (Medallion Benefit)</span> : 
+                      <span className="text-blue-600">${option.price}</span>}
+                  </span>
+                  <button 
+                    onClick={() => handleConfirmUpgrade(option.tier)}
+                    className="bg-blue-500 text-white rounded-md px-4 py-2 text-sm hover:bg-blue-600"
+                  >
+                    {option.complimentary ? 'Request Upgrade' : 'Purchase Upgrade'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600">No upgrade options available for your status.</p>
+          )}
+        </div>
       )}
+      
+      {upgradeConfirmed && (
+        <div className={styles.confirmation}>
+          <h5 className="font-medium text-green-800 mb-1">Upgrade Request Confirmed</h5>
+          <p className="text-sm text-green-700">
+            Your upgrade will be processed 72 hours before departure based on availability.
+          </p>
+        </div>
+      )}
+      
+      <div className={styles.actions}>
+        <button 
+          className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors flex justify-center items-center"
+          onClick={onCancel}
+        >
+          <X className="w-4 h-4 mr-2" />
+          Cancel
+        </button>
+        <button 
+          disabled={!selectedSeat} 
+          onClick={handleFinalConfirmation}
+          className={`flex-1 py-2 px-4 ${!selectedSeat ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-md transition-colors flex justify-center items-center`}
+        >
+          <Check className="w-4 h-4 mr-2" />
+          Confirm Seat Change
+        </button>
+      </div>
     </div>
   );
 }; 

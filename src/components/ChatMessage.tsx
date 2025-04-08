@@ -134,24 +134,35 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       // For seat change and upgrade confirmations
       if (pendingConfirmation.type === 'CHANGE_SEAT' && 
           pendingConfirmation.bookingReference) {
+        
+        const handleSeatConfirm = (seatNumber: string, upgradeClass?: string) => {
+          if (onConfirmSeatChange && pendingConfirmation?.bookingReference) {
+            onConfirmSeatChange(
+              pendingConfirmation.bookingReference,
+              seatNumber,
+              upgradeClass || ''
+            );
+          }
+        };
+        
+        const handleSeatCancel = () => {
+          if (onCancelSeatChange) {
+            onCancelSeatChange();
+          } else {
+            console.log('No seat change cancel handler provided');
+          }
+        };
+        
         return (
           <>
             <div className="whitespace-pre-wrap mb-3">{content}</div>
             <SeatChangeConfirmation
               bookingReference={pendingConfirmation.bookingReference}
-              bookingDetails={pendingConfirmation.bookingDetails}
+              bookingDetails={getBookingDetails(pendingConfirmation.bookingReference)}
               targetClass={(pendingConfirmation.targetClass || 'economy') as 'economy' | 'comfortPlus' | 'first' | 'deltaOne'}
-              seatPreference={(pendingConfirmation.seatPreference || 'aisle') as 'window' | 'aisle' | 'middle' | 'any'}
-              onConfirm={(seatNumber: string, upgradeClass?: string) => {
-                if (onConfirmSeatChange) {
-                  onConfirmSeatChange(
-                    pendingConfirmation.bookingReference as string,
-                    seatNumber,
-                    upgradeClass || ''
-                  );
-                }
-              }}
-              onCancel={onCancelSeatChange || (() => console.log('No seat change cancel handler provided'))}
+              seatPreference={(pendingConfirmation.seatPreference || 'aisle') as 'window' | 'aisle' | 'middle'}
+              onConfirm={handleSeatConfirm}
+              onCancel={handleSeatCancel}
             />
           </>
         );

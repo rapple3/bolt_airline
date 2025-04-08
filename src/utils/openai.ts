@@ -371,7 +371,7 @@ export const getChatResponse = async (userMessage: string): Promise<{
     newFlightNumber?: string;
     newFlightDetails?: FlightData;
     bookingDetails?: BookingData;
-    seatPreference?: string;
+    seatPreference?: 'window' | 'aisle' | 'middle';
     targetClass?: string;
   };
 }> => {
@@ -578,7 +578,9 @@ export const getChatResponse = async (userMessage: string): Promise<{
             type: 'CHANGE_SEAT' as const,
             bookingReference,
             bookingDetails: booking,
-            seatPreference: seatPreference || 'any',
+            seatPreference: (seatPreference === 'window' || seatPreference === 'aisle' || seatPreference === 'middle') 
+              ? (seatPreference as 'window' | 'aisle' | 'middle')
+              : 'aisle',
             targetClass: targetClass || booking.class || 'economy'
           };
         } else {
