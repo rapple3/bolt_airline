@@ -181,7 +181,7 @@ function App() {
       m => m.type === 'bot' && m.pendingConfirmation?.type === 'BOOK_FLIGHT'
     );
     
-    if (!pendingMessage?.pendingConfirmation) {
+    if (!pendingMessage?.pendingConfirmation || !pendingMessage.pendingConfirmation.flightDetails) {
       return;
     }
     
@@ -266,6 +266,179 @@ function App() {
         id: Date.now().toString(),
         type: 'bot',
         content: 'Booking has been cancelled. Is there anything else I can help you with?',
+        timestamp: new Date()
+      });
+    });
+  };
+
+  // Handler for flight cancellation confirmation
+  const handleConfirmCancellation = (bookingReference: string) => {
+    // Find the message with the pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'CANCEL_BOOKING'
+    );
+    
+    if (!pendingMessage?.pendingConfirmation) {
+      return;
+    }
+    
+    // Execute the cancellation action
+    const success = dataManager.cancelBooking(bookingReference);
+    
+    if (!success) {
+      // Show error message
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'bot',
+          content: 'Sorry, there was an error cancelling your booking. Please try again.',
+          timestamp: new Date()
+        }
+      ]);
+      return;
+    }
+    
+    // Add confirmation message
+    const confirmationMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: `Your booking ${bookingReference} has been cancelled successfully.`,
+      timestamp: new Date(),
+      actionResult: {
+        success: true,
+        message: `Successfully cancelled booking ${bookingReference}`,
+        data: {
+          bookingReference,
+          status: 'cancelled'
+        }
+      }
+    };
+    
+    // Update messages and remove pending confirmation from the previous message
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat(confirmationMessage);
+    });
+  };
+
+  // Handler for cancelling a cancellation
+  const handleCancelCancellation = () => {
+    // Find the message with the pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'CANCEL_BOOKING'
+    );
+    
+    if (!pendingMessage) {
+      return;
+    }
+    
+    // Update messages to remove pending confirmation
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat({
+        id: Date.now().toString(),
+        type: 'bot',
+        content: 'Cancellation request has been discarded. Your booking remains active. Is there anything else I can help you with?',
+        timestamp: new Date()
+      });
+    });
+  };
+
+  // Handler for flight change confirmation
+  const handleConfirmChange = (bookingReference: string, newFlightNumber: string) => {
+    // Find the message with the pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'CHANGE_FLIGHT'
+    );
+    
+    if (!pendingMessage?.pendingConfirmation) {
+      return;
+    }
+    
+    // Execute the flight change action
+    const success = dataManager.changeFlight(bookingReference, newFlightNumber);
+    
+    if (!success) {
+      // Show error message
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'bot',
+          content: 'Sorry, there was an error changing your flight. Please try again.',
+          timestamp: new Date()
+        }
+      ]);
+      return;
+    }
+    
+    // Add confirmation message
+    const confirmationMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: `Your booking has been changed to flight ${newFlightNumber} successfully.`,
+      timestamp: new Date(),
+      actionResult: {
+        success: true,
+        message: `Successfully changed booking ${bookingReference} to flight ${newFlightNumber}`,
+        data: {
+          bookingReference,
+          newFlightNumber,
+          status: 'confirmed'
+        }
+      }
+    };
+    
+    // Update messages and remove pending confirmation from the previous message
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat(confirmationMessage);
+    });
+  };
+
+  // Handler for cancelling a flight change
+  const handleCancelChange = () => {
+    // Find the message with the pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'CHANGE_FLIGHT'
+    );
+    
+    if (!pendingMessage) {
+      return;
+    }
+    
+    // Update messages to remove pending confirmation
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat({
+        id: Date.now().toString(),
+        type: 'bot',
+        content: 'Flight change request has been cancelled. Your original booking remains unchanged. Is there anything else I can help you with?',
         timestamp: new Date()
       });
     });
@@ -377,6 +550,10 @@ function App() {
                 message={message} 
                 onConfirmBooking={handleConfirmBooking}
                 onCancelBooking={handleCancelBooking}
+                onConfirmCancellation={handleConfirmCancellation}
+                onCancelCancellation={handleCancelCancellation}
+                onConfirmChange={handleConfirmChange}
+                onCancelChange={handleCancelChange}
               />
             ))}
             {isLoading && (

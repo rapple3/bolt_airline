@@ -7,10 +7,13 @@ export interface Message {
   timestamp: Date;
   actionResult?: ActionResult;
   pendingConfirmation?: {
-    type: 'BOOK_FLIGHT';
-    flightNumber: string;
-    seatClass: 'economy' | 'business' | 'first';
-    flightDetails: FlightData;
+    type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT';
+    flightNumber?: string;
+    seatClass?: 'economy' | 'business' | 'first';
+    flightDetails?: FlightData;
+    bookingReference?: string;
+    newFlightNumber?: string;
+    newFlightDetails?: FlightData;
   };
 }
 
