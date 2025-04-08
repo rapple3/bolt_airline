@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { dataManager } from '../utils/dataManager';
 import { UserProfile } from '../types';
-import { Calendar, Plane, Award, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Plane, Award, ChevronDown, ChevronUp, User } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface UserProfileCardProps {
@@ -46,18 +46,6 @@ export default function UserProfileCard({ profile: propProfile }: UserProfileCar
     }
   };
 
-  // Helper function to ensure avatar URLs are resolved correctly
-  const getAvatarUrl = (url: string) => {
-    // If URL is already absolute, return as is
-    if (url.startsWith('http')) return url;
-    
-    // If URL already starts with a slash, assume it's correct
-    if (url.startsWith('/')) return url;
-    
-    // Otherwise, ensure it starts with a slash
-    return `/${url}`;
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
       {/* Header - Clickable to expand/collapse */}
@@ -66,18 +54,8 @@ export default function UserProfileCard({ profile: propProfile }: UserProfileCar
         onClick={toggleExpand}
       >
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-full bg-gray-200 overflow-hidden">
-            <img 
-              src={getAvatarUrl(profile.avatarUrl)} 
-              alt={profile.name}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                console.error(`Failed to load image: ${target.src}`);
-                target.onerror = null;
-                target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS11c2VyIj48cGF0aCBkPSJNMTkgMjFhNyA3IDAgMCAwLTE0IDAiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEwIiByPSI0Ii8+PC9zdmc+';
-              }}
-            />
+          <div className="h-12 w-12 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-gray-600">
+            <User className="h-7 w-7" />
           </div>
           <div>
             <h2 className="font-medium">{profile.name}</h2>
