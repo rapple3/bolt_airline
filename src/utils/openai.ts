@@ -26,24 +26,24 @@ const conversationContext: ConversationContext = {
 };
 
 // System prompt that includes instructions for action format
-const SYSTEM_PROMPT = `You are a friendly and enthusiastic AI assistant for Bolt Airlines. Your name is Bolt Assistant. You are passionate about helping customers have the best travel experience possible.
+const SYSTEM_PROMPT = `You are a friendly and professional AI assistant for Delta Airlines. Your name is Delta Assistant. You are committed to helping customers have the best travel experience possible with Delta.
 
 PERSONALITY TRAITS:
-- Warm and approachable: Always greet customers by name when possible
-- Proactive and solution-oriented: Anticipate needs and offer helpful suggestions
-- Patient and understanding: Reassure customers when they're frustrated or confused
-- Cheerful and positive: Use upbeat language and express excitement about their travel plans
-- Professional but conversational: Balance professionalism with friendly, personable interactions
+- Professional and reliable: Reflect Delta's reputation for operational excellence
+- Warm and hospitable: Embody Delta's southern hospitality roots
+- Solution-focused: Provide efficient, helpful solutions to customer needs
+- Attentive to detail: Prioritize accuracy in flight information and booking details
+- Globally-minded: Recognize Delta's worldwide network and diverse customer base
 
 You can perform the following actions to help users:
 
 1. Search for flights: [ACTION:SEARCH_FLIGHTS]from="New York" to="London" date="2023-12-25"[/ACTION]
-2. Book a flight: [ACTION:BOOK_FLIGHT]flightNumber="FL123" seatClass="economy"[/ACTION]
-3. Cancel a booking: [ACTION:CANCEL_BOOKING]bookingReference="BK12345"[/ACTION]
-4. Change flight: [ACTION:CHANGE_FLIGHT]bookingReference="BK12345" newFlightNumber="FL456"[/ACTION]
-5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="BK12345" newSeatNumber="12A"[/ACTION]
-6. Check-in: [ACTION:CHECK_IN]bookingReference="BK12345"[/ACTION]
-7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="BK12345"[/ACTION]
+2. Book a flight: [ACTION:BOOK_FLIGHT]flightNumber="DL123" seatClass="economy"[/ACTION]
+3. Cancel a booking: [ACTION:CANCEL_BOOKING]bookingReference="DL12345"[/ACTION]
+4. Change flight: [ACTION:CHANGE_FLIGHT]bookingReference="DL12345" newFlightNumber="DL456"[/ACTION]
+5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="DL12345" newSeatNumber="12A"[/ACTION]
+6. Check-in: [ACTION:CHECK_IN]bookingReference="DL12345"[/ACTION]
+7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="DL12345"[/ACTION]
 
 IMPORTANT WORKFLOW:
 - Never directly execute booking, cancellation, or flight changes without first getting explicit confirmation
@@ -55,31 +55,31 @@ IMPORTANT WORKFLOW:
 MANDATORY CONFIRMATION PROCESS - VERY IMPORTANT:
 1. BOOKING:
    - After user selects a flight, show a summary (don't use BOOK_FLIGHT yet)
-   - Ask "Would you like me to go ahead and book this flight for you?"
+   - Ask "Would you like me to go ahead and book this Delta flight for you?"
    - Only use BOOK_FLIGHT action after user explicitly confirms with "yes", "book it", etc.
 
 2. CANCELLATION:
    - When user asks to cancel, don't use CANCEL_BOOKING yet
-   - Show a warning and ask "Are you sure you want to cancel this booking? This cannot be undone."
+   - Show a warning and ask "Are you sure you want to cancel this Delta booking? This cannot be undone."
    - Only use CANCEL_BOOKING action after user explicitly confirms
 
 3. FLIGHT CHANGE:
    - After user selects a new flight, show details of the change (don't use CHANGE_FLIGHT yet)
-   - Ask "Would you like me to confirm this flight change for you?"
+   - Ask "Would you like me to confirm this Delta flight change for you?"
    - Only use CHANGE_FLIGHT action after user explicitly confirms
 
 CUSTOMER SERVICE PRINCIPLES:
 - Always acknowledge the customer's feelings and validate their concerns
 - Offer multiple options whenever possible to give customers choice
 - Check for satisfaction after providing information ("Does that answer your question?" or "Would you like more details?")
-- Express genuine gratitude when customers choose Bolt Airlines
+- Express genuine gratitude when customers choose Delta Airlines
 - If you can't help with something, clearly explain why and offer alternatives
 - For delayed flights or issues, show empathy and offer solutions proactively
 
 IMPORTANT RESPONSE GUIDELINES:
 - When using SEARCH_FLIGHTS, wait for the action result before forming your response
-- If flights are found, acknowledge the number of flights found with excitement and ask the user to review the options
-- If no flights are found, express understanding of their disappointment and suggest checking different dates or routes
+- If flights are found, acknowledge the number of flights found with a professional tone and ask the user to review the options
+- If no flights are found, express understanding and suggest checking different dates or routes
 - Always be consistent with the actual search results shown to the user
 - Always ask for explicit confirmation before booking a flight
 - Include complete flight details (route, date, time, price) when asking for confirmation
@@ -91,15 +91,15 @@ Place the action directive at the beginning of your message, followed by your re
 Example of flight search and booking workflow:
 User: "I want to book a flight from New York to London on December 25th"
 Assistant: "[ACTION:SEARCH_FLIGHTS]from="New York" to="London" date="2023-12-25"[/ACTION]
-Great news! I've found several flights from New York to London on December 25th. Here are your options - let me know which one catches your eye!"
+I've found several Delta flights from New York to London on December 25th. Here are your options - please let me know which one would work best for your schedule."
 
-User: "I'd like to book flight AI101 in economy class"
-Assistant: "Excellent choice! Flight AI101 in economy class looks perfect for your trip. This flight departs from New York (JFK) at 10:30 AM and arrives in London (LHR) at 10:45 PM. The cost is $750. 
-Would you like me to go ahead and book this flight for you?"
+User: "I'd like to book flight DL101 in economy class"
+Assistant: "Great choice! Delta flight DL101 in economy class from New York (JFK) to London (LHR) departing at 10:30 AM and arriving at 10:45 PM. The cost is $750. 
+Would you like me to go ahead and book this Delta flight for you?"
 
 User: "Yes, please book it"
-Assistant: "[ACTION:BOOK_FLIGHT]flightNumber="AI101" seatClass="economy"[/ACTION]
-Wonderful! I've booked your economy class seat on flight AI101. You're all set for your trip to London! You'll receive a confirmation shortly with all the details. Is there anything else I can help you with for your journey?"
+Assistant: "[ACTION:BOOK_FLIGHT]flightNumber="DL101" seatClass="economy"[/ACTION]
+Excellent! I've booked your economy class seat on Delta flight DL101. You're all set for your trip to London! You'll receive a confirmation email shortly with all the details. Is there anything else I can help you with regarding your Delta journey?"
 `;
 
 // Helper function to update conversation context with flight search results
@@ -260,6 +260,55 @@ async function callApiWithFallback(userMessage: string, contextData: any, histor
   }
 };
 
+// Function to detect if a question is policy-related
+const isPolicyQuestion = (message: string): boolean => {
+  const policyKeywords = [
+    'policy', 'policies', 'rules', 'terms', 'conditions',
+    'baggage', 'luggage', 'carry-on', 'checked bag',
+    'cancel', 'cancellation', 'refund', 'change fee',
+    'check-in', 'boarding', 'seating', 'upgrade', 
+    'miles', 'points', 'rewards', 'loyalty', 'tier',
+    'allowed', 'prohibited', 'permitted', 'restriction'
+  ];
+  
+  const messageLower = message.toLowerCase();
+  
+  // Check for question format
+  const isQuestion = /what|how|when|where|why|can i|do you|is there|are there/i.test(messageLower);
+  
+  // Check for policy keywords
+  const hasPolicyKeyword = policyKeywords.some(keyword => 
+    messageLower.includes(keyword)
+  );
+  
+  return isQuestion && hasPolicyKeyword;
+};
+
+// Function to fetch policy information
+const fetchPolicyInfo = async (query: string): Promise<string> => {
+  try {
+    const response = await fetch('/api/policy-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    
+    if (!response.ok) throw new Error('Policy search failed');
+    
+    const { policyChunks } = await response.json();
+    
+    if (!policyChunks || policyChunks.length === 0) return '';
+    
+    // Format policy information as context
+    return policyChunks
+      .map((chunk: { metadata: { category: string }, content: string }) => `--- Policy Information (${chunk.metadata.category}) ---\n${chunk.content}`)
+      .join('\n\n');
+  } catch (error) {
+    console.error('Error fetching policy info:', error);
+    return '';
+  }
+};
+
 export const getChatResponse = async (userMessage: string): Promise<{
   content: string;
   requiresHandoff: boolean;
@@ -276,6 +325,19 @@ export const getChatResponse = async (userMessage: string): Promise<{
 }> => {
   // Get contextual data based on user message
   const contextData = getRelevantData(userMessage);
+  
+  // Check if this might be a policy question
+  if (isPolicyQuestion(userMessage)) {
+    console.log('Policy question detected:', userMessage);
+    // Fetch relevant policy information
+    const policyInfo = await fetchPolicyInfo(userMessage);
+    
+    // Add policy information to context if found
+    if (policyInfo) {
+      console.log('Found relevant policy information');
+      (contextData as any).policyInformation = policyInfo;
+    }
+  }
   
   // Check if the user is confirming a pending booking
   const isConfirming = /\b(yes|confirm|book it|proceed|go ahead)\b/i.test(userMessage) && 
@@ -339,9 +401,28 @@ export const getChatResponse = async (userMessage: string): Promise<{
     if (actionType && params) {
       console.log(`Executing action: ${actionType}`, params);
       
-      // For BOOK_FLIGHT, we need to implement our two-step confirmation process
-      if (actionType === 'BOOK_FLIGHT' && !isConfirming) {
-        // First, validate that we have a selected flight
+      // For BOOK_FLIGHT, CANCEL_BOOKING, and CHANGE_FLIGHT, we'll let the UI handle the confirmation
+      // so we don't need as much special handling here. Let's simplify the logic.
+      if (actionType === 'SEARCH_FLIGHTS') {
+        // Execute the search
+        actionResult = await executeAction(actionType, params);
+        
+        // Update the conversation context with the search results
+        if (actionResult?.success && Array.isArray(actionResult.data)) {
+          updateContextWithSearchResults(actionResult.data);
+        }
+        
+        // For flight search, we want to remove redundant text and let the UI component handle the display
+        if (actionResult?.success) {
+          // If the text is just repeating info that will be shown in the flight results card,
+          // we can simplify it or replace it entirely
+          if (displayContent.toLowerCase().includes('found') && displayContent.toLowerCase().includes('flight')) {
+            // Either remove the content entirely and let the UI show it, or provide a simple prompt
+            displayContent = 'Here are the flights I found for you. Please select one to proceed.';
+          }
+        }
+      } else if (actionType === 'BOOK_FLIGHT') {
+        // Find flight details for a potential pending confirmation
         const { flightNumber, seatClass } = params;
         
         // Find the flight details
@@ -351,60 +432,18 @@ export const getChatResponse = async (userMessage: string): Promise<{
           dataManager.getFlights().find(f => f.flightNumber === flightNumber);
           
         if (flight) {
-          // Store as a pending booking that needs confirmation
-          conversationContext.pendingBookingDetails = {
-            flightNumber,
-            seatClass: seatClass as 'economy' | 'business' | 'first',
-            confirmed: false
+          // The ActionResultCard will handle the confirmation now
+          // We'll just pass the result to let the UI know what action was attempted
+          actionResult = {
+            success: true,
+            message: `Flight ${flightNumber} selected for booking`,
+            data: flight
           };
-          
-          // Update the selected flight
-          conversationContext.selectedFlight = flight;
-          
-          // Format flight details for confirmation
-          const departureDate = new Date(flight.scheduledTime);
-          const formattedDate = departureDate.toLocaleDateString('en-US', { 
-            weekday: 'long',
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          });
-          const formattedTime = departureDate.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-          
-          // Check if there are available seats in the requested class
-          const availableSeats = flight.seats[seatClass as 'economy' | 'business' | 'first']
-            .filter(seat => seat.status === 'available').length;
-          
-          if (availableSeats === 0) {
-            // If no seats available, send an error message
-            displayContent = `I'm sorry, there are no ${seatClass} class seats available on flight ${flightNumber}. Would you like to try a different flight or seat class?`;
-            
-            // Clear the pending booking
-            conversationContext.pendingBookingDetails = undefined;
-          } else {
-            // Create a confirmation message with flight details
-            displayContent = `I see you're interested in booking flight ${flightNumber} in ${seatClass} class. 
-This flight departs from ${flight.departure} on ${formattedDate} at ${formattedTime} and arrives at ${flight.arrival}.
-The flight duration is ${flight.duration}.
-
-Would you like me to confirm this booking?`;
-          
-            // Return the pending confirmation
-            pendingConfirmation = {
-              type: 'BOOK_FLIGHT' as const,
-              flightNumber,
-              seatClass: seatClass as 'economy' | 'business' | 'first',
-              flightDetails: flight
-            };
-          }
         } else {
           // Flight not found
           displayContent = `I couldn't find flight ${flightNumber} in our system. Please check the flight number and try again.`;
         }
-      } else if (actionType === 'CANCEL_BOOKING' && !isConfirming) {
+      } else if (actionType === 'CANCEL_BOOKING') {
         // Extract booking reference
         const { bookingReference } = params;
         
@@ -413,10 +452,13 @@ Would you like me to confirm this booking?`;
         const booking = bookings.find(b => b.bookingReference === bookingReference);
         
         if (booking) {
-          // Create a confirmation message with booking details
-          displayContent = `I see you want to cancel booking ${bookingReference}. This action cannot be undone.
-
-Are you sure you want to cancel this booking?`;
+          // The ActionResultCard will handle the confirmation now
+          // We'll just pass the result to let the UI know what action was attempted
+          actionResult = {
+            success: true,
+            message: `Booking ${bookingReference} selected for cancellation`,
+            data: booking
+          };
           
           // Return the pending confirmation
           pendingConfirmation = {
@@ -427,7 +469,7 @@ Are you sure you want to cancel this booking?`;
           // Booking not found
           displayContent = `I couldn't find booking ${bookingReference} in our system. Please check the booking reference and try again.`;
         }
-      } else if (actionType === 'CHANGE_FLIGHT' && !isConfirming) {
+      } else if (actionType === 'CHANGE_FLIGHT') {
         // Extract booking reference and new flight number
         const { bookingReference, newFlightNumber } = params;
         
@@ -439,29 +481,13 @@ Are you sure you want to cancel this booking?`;
         const newFlight = dataManager.getFlights().find(f => f.flightNumber === newFlightNumber);
         
         if (booking && newFlight) {
-          // Get current flight details
-          const currentFlight = dataManager.getFlights().find(f => f.flightNumber === booking.flightNumber);
-          
-          // Format new flight details
-          const departureDate = new Date(newFlight.scheduledTime);
-          const formattedDate = departureDate.toLocaleDateString('en-US', { 
-            weekday: 'long',
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          });
-          const formattedTime = departureDate.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-          
-          // Create a confirmation message with flight change details
-          displayContent = `I see you want to change your booking ${bookingReference} from flight ${booking.flightNumber} to flight ${newFlightNumber}.
-
-The new flight departs from ${newFlight.departure} on ${formattedDate} at ${formattedTime} and arrives at ${newFlight.arrival}.
-The flight duration is ${newFlight.duration}.
-
-Would you like me to confirm this flight change?`;
+          // The ActionResultCard will handle the confirmation now
+          // We'll just pass the result to let the UI know what action was attempted
+          actionResult = {
+            success: true,
+            message: `Flight change from booking ${bookingReference} to flight ${newFlightNumber} requested`,
+            data: { booking, newFlight }
+          };
           
           // Return the pending confirmation
           pendingConfirmation = {
@@ -478,32 +504,9 @@ Would you like me to confirm this flight change?`;
           // New flight not found
           displayContent = `I couldn't find flight ${newFlightNumber} in our system. Please check the flight number and try again.`;
         }
-      } else if (actionType === 'SEARCH_FLIGHTS') {
-        // Execute the search
-        actionResult = await executeAction(actionType, params);
-        
-        // Update the conversation context with the search results
-        if (actionResult?.success && Array.isArray(actionResult.data)) {
-          updateContextWithSearchResults(actionResult.data);
-        }
-        
-        // For flight search, we want to remove redundant text and let the UI component handle the display
-        if (actionResult?.success) {
-          // If the text is just repeating info that will be shown in the flight results card,
-          // we can simplify it or replace it entirely
-          if (displayContent.toLowerCase().includes('found') && displayContent.toLowerCase().includes('flight')) {
-            // Either remove the content entirely and let the UI show it, or provide a simple prompt
-            displayContent = 'Here are the flights I found for you. Please select one to continue by specifying the flight number (e.g., "I want flight AA3606").';
-          }
-        }
       } else {
         // For other action types, execute them directly
         actionResult = await executeAction(actionType, params);
-        
-        // If this was a successful booking, clear any pending booking
-        if (actionType === 'BOOK_FLIGHT' && actionResult?.success) {
-          conversationContext.pendingBookingDetails = undefined;
-        }
       }
     }
     

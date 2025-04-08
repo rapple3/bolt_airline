@@ -138,7 +138,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         {/* Display action result if present */}
         {type === 'bot' && actionResult && (
           <div className="mt-2">
-            <ActionResultCard result={actionResult} />
+            <ActionResultCard 
+              result={actionResult}
+              onConfirmBooking={onConfirmBooking}
+              onCancelBooking={onCancelBooking} 
+              onConfirmCancellation={onConfirmCancellation}
+              onCancelCancellation={onCancelCancellation}
+              onConfirmChange={onConfirmChange}
+              onCancelChange={onCancelChange}
+            />
           </div>
         )}
         
