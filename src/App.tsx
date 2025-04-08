@@ -14,7 +14,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([{
     id: '1',
     type: 'bot',
-    content: "Hi there! I'm Bolt Assistant, your friendly AI travel companion at Bolt Airlines. I'm here to make your travel experience amazing! How can I help you today? Whether you need to book a flight, check your reservation, or get travel information - I'm excited to assist you!",
+    content: "Hi there! I'm Delta Assistant, your friendly AI travel companion at Delta Airlines. I'm here to make your travel experience amazing! How can I help you today? Whether you need to book a flight, check your reservation, or get travel information - I'm excited to assist you!",
     timestamp: new Date()
   }]);
   const [handoff, setHandoff] = useState<AgentHandoff | null>(null);
@@ -37,7 +37,7 @@ function App() {
     setMessages([{
       id: '1',
       type: 'bot',
-      content: `Hello ${profile.name}! I'm Bolt Assistant, your friendly AI travel companion. It's great to see you today! How can I help make your travel experience with Bolt Airlines amazing?`,
+      content: `Hello ${profile.name}! I'm Delta Assistant, your friendly AI travel companion. It's great to see you today! How can I help make your travel experience with Delta Airlines amazing?`,
       timestamp: new Date()
     }]);
     resetChatHistory();
@@ -70,7 +70,7 @@ function App() {
     setMessages([{
       id: '1',
       type: 'bot',
-      content: `Hello ${currentUser.name}! I'm Bolt Assistant, your friendly AI travel companion. It's great to see you today! How can I help make your travel experience with Bolt Airlines amazing?`,
+      content: `Hello ${currentUser.name}! I'm Delta Assistant, your friendly AI travel companion. It's great to see you today! How can I help make your travel experience with Delta Airlines amazing?`,
       timestamp: new Date()
     }]);
     resetChatHistory();
@@ -457,7 +457,7 @@ function App() {
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
           <Plane className="text-blue-500 w-6 h-6 mr-2" />
-          <h1 className="text-xl font-semibold text-gray-800">Bolt Airlines</h1>
+          <h1 className="text-xl font-semibold text-gray-800">Delta Airlines</h1>
         </div>
         <div className="flex items-center">
           <div className="md:hidden flex items-center">
