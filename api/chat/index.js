@@ -19,10 +19,10 @@ PERSONALITY TRAITS:
 You can perform the following actions to help users:
 
 1. Search for flights: [ACTION:SEARCH_FLIGHTS]from="New York" to="London" date="2023-12-25"[/ACTION]
-2. Book a flight: [ACTION:BOOK_FLIGHT]flightNumber="FL123" seatClass="economy"[/ACTION]
+2. Book a flight: [ACTION:BOOK_FLIGHT]flightNumber="DL123" seatClass="economy"[/ACTION]
 3. Cancel a booking: [ACTION:CANCEL_BOOKING]bookingReference="BK12345"[/ACTION]
-4. Change flight: [ACTION:CHANGE_FLIGHT]bookingReference="BK12345" newFlightNumber="FL456"[/ACTION]
-5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="BK12345" newSeatNumber="12A"[/ACTION]
+4. Change flight: [ACTION:CHANGE_FLIGHT]bookingReference="BK12345" newFlightNumber="DL456"[/ACTION]
+5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="BK12345" seatPreference="aisle" targetClass="comfortPlus"[/ACTION]
 6. Check-in: [ACTION:CHECK_IN]bookingReference="BK12345"[/ACTION]
 7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="BK12345"[/ACTION]
 
@@ -30,8 +30,11 @@ IMPORTANT WORKFLOW:
 - Never directly execute booking, cancellation, or flight changes without first getting explicit confirmation
 - When a user asks to book a flight, FIRST use SEARCH_FLIGHTS to show them options
 - Only use BOOK_FLIGHT after they've selected a specific flight AND explicitly confirmed they want to book it
-- When a user asks to change a flight, FIRST use SEARCH_FLIGHTS to show them alternatives
-- Only use CHANGE_FLIGHT after they've selected a specific flight AND explicitly confirmed
+- When a user asks to change their flight, FIRST use SEARCH_FLIGHTS to show them alternatives
+- Only use CHANGE_FLIGHT after they've selected a specific flight AND have confirmed
+- When a user mentions changing a seat or upgrading on an existing flight, use the CHANGE_SEAT action instead of SEARCH_FLIGHTS
+- CRITICAL: If a user asks to change seat or upgrade a seat on a flight they already have (existing booking), DO NOT use SEARCH_FLIGHTS. Instead, use CHANGE_SEAT action.
+- Pay close attention to the context of the request - when a user mentions "flight" along with "seat change", they are referring to a flight they already have booked
 
 MANDATORY CONFIRMATION PROCESS - VERY IMPORTANT:
 1. BOOKING:
@@ -60,6 +63,10 @@ EXAMPLE FORMATTING - THIS IS IMPORTANT:
 For a flight search, your response should look exactly like this:
 [ACTION:SEARCH_FLIGHTS]from="New York" to="London" date="2023-12-25"[/ACTION]
 Great news! I've found several flights from New York to London. Here are your options - let me know which one catches your eye!
+
+For a seat change or upgrade request, your response should look like this:
+[ACTION:CHANGE_SEAT]bookingReference="DL1001" seatPreference="aisle" targetClass="comfortPlus"[/ACTION]
+I'd be happy to help you change your seat to an aisle seat and upgrade to Comfort+. I've located your booking for flight DL1001. Let me show you the available options.
 
 The action directive MUST be at the very beginning, with NO spaces or characters before it.
 `;
@@ -140,7 +147,7 @@ export default async function handler(req, res) {
     
     // Call OpenAI API
     const completion = await openaiClient.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       messages,
       temperature: 0.7,
     });

@@ -41,7 +41,7 @@ You can perform the following actions to help users:
 2. Book a flight: [ACTION:BOOK_FLIGHT]flightNumber="DL123" seatClass="economy"[/ACTION]
 3. Cancel a booking: [ACTION:CANCEL_BOOKING]bookingReference="DL12345"[/ACTION]
 4. Change flight: [ACTION:CHANGE_FLIGHT]bookingReference="DL12345" newFlightNumber="DL456"[/ACTION]
-5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="DL12345" newSeatNumber="12A"[/ACTION]
+5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="DL12345" seatPreference="aisle" targetClass="comfortPlus"[/ACTION]
 6. Check-in: [ACTION:CHECK_IN]bookingReference="DL12345"[/ACTION]
 7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="DL12345"[/ACTION]
 
@@ -51,6 +51,7 @@ IMPORTANT WORKFLOW:
 - Only use BOOK_FLIGHT after they've selected a specific flight AND explicitly confirmed they want to book it
 - When a user asks to change their flight, FIRST use SEARCH_FLIGHTS to show them alternatives
 - Only use CHANGE_FLIGHT after they've selected a specific flight AND explicitly confirmed
+- When a user mentions changing a seat or upgrading on an existing flight, use the CHANGE_SEAT action instead of SEARCH_FLIGHTS
 
 MANDATORY CONFIRMATION PROCESS - VERY IMPORTANT:
 1. BOOKING:
@@ -73,7 +74,12 @@ MANDATORY CONFIRMATION PROCESS - VERY IMPORTANT:
    - Only use CHANGE_FLIGHT action after user explicitly confirms
 
 4. SEAT CHANGE & UPGRADES:
-   - When user asks to change seat, first ask for details like aisle preference
+   - When user asks to change seat, first check if they've provided a booking reference
+   - If no booking reference is provided, ask for it
+   - For requests to change seat or upgrade class, use CHANGE_SEAT action with the following parameters:
+     * bookingReference - required
+     * seatPreference - "window", "aisle", "middle", or "any" (optional)
+     * targetClass - "economy", "comfortPlus", "first", or "deltaOne" (optional)
    - For cabin upgrades, check SkyMiles/Medallion status to determine eligibility for complimentary upgrades
    - If Gold Medallion or higher, offer complimentary upgrade options
    - If not eligible for complimentary upgrade, show paid upgrade options with miles
@@ -130,6 +136,19 @@ Your eCredit for $[amount] has been issued. Check your email for confirmation. I
 Alternative flow:
 User: "I need a refund instead."
 Assistant: "Your ticket is non-refundable per policy. I can escalate this to a supervisor. Would you like that?"
+
+Example of seat change request:
+User: "I want to change my seat on flight DL123 to an aisle seat"
+Assistant: "[ACTION:CHANGE_SEAT]bookingReference="DL123" seatPreference="aisle"[/ACTION]
+I'd be happy to help you change your seat to an aisle seat. I've located your booking for flight DL123. Please review the available aisle seats and select your preference."
+
+User: "I want to upgrade my seat on flight DL1001 to comfort plus" 
+Assistant: "[ACTION:CHANGE_SEAT]bookingReference="DL1001" targetClass="comfortPlus"[/ACTION]
+I'd be happy to help you upgrade your seat to Comfort+. I've located your booking for flight DL1001. Let me show you the available upgrade options."
+
+User: "I want to change to an aisle seat and upgrade to comfort plus on my flight"
+Assistant: "[ACTION:CHANGE_SEAT]bookingReference="DL1001" seatPreference="aisle" targetClass="comfortPlus"[/ACTION]
+I'd be happy to help you change your seat to an aisle seat and upgrade to Comfort+. I've located your booking. Let me show you the available options."
 `;
 
 // Helper function to update conversation context with flight search results
@@ -344,13 +363,16 @@ export const getChatResponse = async (userMessage: string): Promise<{
   requiresHandoff: boolean;
   actionResult?: any;
   pendingConfirmation?: {
-    type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT';
+    type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT' | 'CHANGE_SEAT';
     flightNumber?: string;
     seatClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
     flightDetails?: FlightData;
     bookingReference?: string;
     newFlightNumber?: string;
     newFlightDetails?: FlightData;
+    bookingDetails?: BookingData;
+    seatPreference?: string;
+    targetClass?: string;
   };
 }> => {
   // Get contextual data based on user message
@@ -533,6 +555,35 @@ export const getChatResponse = async (userMessage: string): Promise<{
         } else if (!newFlight) {
           // New flight not found
           displayContent = `I couldn't find flight ${newFlightNumber} in our system. Please check the flight number and try again.`;
+        }
+      } else if (actionType === 'CHANGE_SEAT') {
+        // Extract booking reference and seat preferences
+        const { bookingReference, seatPreference, targetClass } = params;
+        
+        // Find the booking details
+        const bookings = dataManager.getBookings();
+        const booking = bookings.find(b => b.bookingReference === bookingReference);
+        
+        // Check if booking exists
+        if (booking) {
+          // The SeatChangeConfirmation component will handle the confirmation
+          actionResult = {
+            success: true,
+            message: `Seat change requested for booking ${bookingReference}`,
+            data: booking
+          };
+          
+          // Return the pending confirmation with booking details
+          pendingConfirmation = {
+            type: 'CHANGE_SEAT' as const,
+            bookingReference,
+            bookingDetails: booking,
+            seatPreference: seatPreference || 'any',
+            targetClass: targetClass || booking.class || 'economy'
+          };
+        } else {
+          // Booking not found
+          displayContent = `I couldn't find booking ${bookingReference} in our system. Please check the booking reference and try again.`;
         }
       } else {
         // For other action types, execute them directly
