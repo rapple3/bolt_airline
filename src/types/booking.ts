@@ -9,5 +9,5 @@ export interface BookingData {
   status: 'confirmed' | 'cancelled' | 'completed';
   seatInfo?: SeatInfo;
   checkedIn: boolean;
-  class: 'economy' | 'business' | 'first';
+  class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
 } 

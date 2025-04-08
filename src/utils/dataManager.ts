@@ -1,4 +1,4 @@
-import { mockBookings, mockUserProfile, mockUserProfiles } from '../data/mockData';
+import { mockBookings, mockUserProfile } from '../data/mockData';
 import { generateFlights } from '../data/mock/flights';
 import { FlightData, BookingData, UserProfile, SeatInfo } from '../types';
 
@@ -62,14 +62,12 @@ class DataManager {
     return this.flights;
   }
 
-  setFlights(flights: FlightData[]): void {
-    this.flights = flights;
-    this.saveToStorage();
-    this.notifySubscribers();
+  getFlight(flightNumber: string): FlightData | undefined {
+    return this.flights.find(f => f.flightNumber === flightNumber);
   }
 
   getBookings(): BookingData[] {
-    return this.bookings.filter(b => b.customerId === this.userProfile.id);
+    return this.bookings.filter(b => b.customerId === this.userProfile.customerId);
   }
 
   getUserProfile(): UserProfile {
@@ -86,7 +84,7 @@ class DataManager {
   cancelBooking(bookingReference: string): boolean {
     const bookingIndex = this.bookings.findIndex(b => 
       b.bookingReference === bookingReference && 
-      b.customerId === this.userProfile.id
+      b.customerId === this.userProfile.customerId
     );
     
     if (bookingIndex === -1) return false;
@@ -118,7 +116,7 @@ class DataManager {
   changeFlight(bookingReference: string, newFlightNumber: string): boolean {
     const bookingIndex = this.bookings.findIndex(b => 
       b.bookingReference === bookingReference && 
-      b.customerId === this.userProfile.id
+      b.customerId === this.userProfile.customerId
     );
     
     if (bookingIndex === -1) return false;
@@ -166,12 +164,13 @@ class DataManager {
     return true;
   }
   
-  createBooking(flightNumber: string, seatClass: 'economy' | 'business' | 'first'): boolean {
+  createBooking(flightNumber: string, seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'): boolean {
     const flight = this.flights.find(f => f.flightNumber === flightNumber);
     if (!flight) return false;
     
-    // Check if first class exists on this flight
-    if (seatClass === 'first' && flight.seats.first.length === 0) {
+    // Check if the selected class exists on this flight
+    if ((seatClass === 'deltaOne' && flight.seats.deltaOne.length === 0) ||
+        (seatClass === 'first' && flight.seats.first.length === 0)) {
       return false;
     }
     
@@ -183,11 +182,11 @@ class DataManager {
     
     // Create new booking
     const newBooking: BookingData = {
-      bookingReference: `BK${String(this.bookings.length + 1).padStart(5, '0')}`,
-      customerId: this.userProfile.id,
+      bookingReference: `DL${String(this.bookings.length + 1).padStart(5, '0')}`,
+      customerId: this.userProfile.customerId,
       flightNumber,
       passengerName: this.userProfile.name,
-      date: new Date(flight.scheduledTime).toISOString(),
+      date: new Date(flight.scheduledTime).toISOString().split('T')[0],
       status: 'confirmed',
       seatInfo: seat,
       checkedIn: false,
@@ -216,7 +215,7 @@ class DataManager {
   changeSeat(bookingReference: string, newSeatNumber: string): boolean {
     const bookingIndex = this.bookings.findIndex(b => 
       b.bookingReference === bookingReference && 
-      b.customerId === this.userProfile.id
+      b.customerId === this.userProfile.customerId
     );
     
     if (bookingIndex === -1) return false;
@@ -228,7 +227,7 @@ class DataManager {
     
     // Find the new seat across all seat classes
     let newSeat: SeatInfo | null = null;
-    for (const seatClass of ['economy', 'business', 'first'] as const) {
+    for (const seatClass of ['economy', 'comfortPlus', 'first', 'deltaOne'] as const) {
       const seat = flight.seats[seatClass].find(s => s.seatNumber === newSeatNumber);
       if (seat && seat.status === 'available') {
         newSeat = { ...seat, status: 'occupied' as const };
@@ -253,7 +252,7 @@ class DataManager {
           class: seatClass
         };
         
-        // Update the flight in user profile
+        // Update in user profile
         const flightIndex = this.userProfile.upcomingFlights.findIndex(
           f => f.bookingReference === bookingReference
         );
@@ -306,13 +305,12 @@ class DataManager {
     this.bookings = [...mockBookings];
     
     // Keep the current user ID when resetting to maintain chosen user
-    const currentUserId = this.userProfile.id;
-    // Find matching user in mock profiles or fall back to the default
+    const currentUserId = this.userProfile.customerId;
+    // Find matching user in mock bookings or fall back to the default
     const matchingUser = mockBookings.find(booking => booking.customerId === currentUserId);
     if (matchingUser) {
-      // If current user exists in the mock data, keep their ID
-      const mockUser = { ...mockUserProfiles.find((p: UserProfile) => p.id === currentUserId) || mockUserProfile };
-      this.userProfile = mockUser;
+      // If current user exists in the mock data, use the corresponding booking's customer
+      this.userProfile = { ...mockUserProfile };
     } else {
       // Otherwise, use the default user profile
       this.userProfile = { ...mockUserProfile };
@@ -323,6 +321,50 @@ class DataManager {
     localStorage.removeItem('airline_app_bookings');
     localStorage.removeItem('airline_app_userProfile');
     
+    this.saveToStorage();
+    this.notifySubscribers();
+  }
+
+  checkIn(bookingReference: string): boolean {
+    const bookingIndex = this.bookings.findIndex(b => 
+      b.bookingReference === bookingReference && 
+      b.customerId === this.userProfile.customerId
+    );
+    
+    if (bookingIndex === -1) return false;
+    
+    // Update the booking status
+    this.bookings[bookingIndex] = {
+      ...this.bookings[bookingIndex],
+      checkedIn: true
+    };
+    
+    // Log the action
+    this.logAction('Checked In', { bookingReference });
+    
+    // Save changes and notify UI
+    this.saveToStorage();
+    this.notifySubscribers();
+    
+    return true;
+  }
+
+  trackBaggage(bookingReference: string): Record<string, any> {
+    const booking = this.bookings.find(b => 
+      b.bookingReference === bookingReference && 
+      b.customerId === this.userProfile.customerId
+    );
+    
+    if (!booking) return {};
+    
+    // Log the action
+    this.logAction('Tracked Baggage', { bookingReference });
+    
+    return booking;
+  }
+
+  setFlights(flights: FlightData[]): void {
+    this.flights = flights;
     this.saveToStorage();
     this.notifySubscribers();
   }

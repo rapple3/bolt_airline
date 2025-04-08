@@ -1,6 +1,6 @@
 export interface SeatInfo {
   seatNumber: string;
-  class: 'economy' | 'business' | 'first';
+  class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
   status: 'available' | 'occupied' | 'selected';
   price: number;
   features?: string[];
@@ -11,13 +11,14 @@ export interface FlightData {
   departure: string;
   arrival: string;
   scheduledTime: string;
-  status: 'on-time' | 'delayed' | 'cancelled';
+  status: 'on time' | 'delayed' | 'cancelled' | 'departed' | 'arrived';
   delayReason?: string;
   aircraft: string;
   seats: {
     economy: SeatInfo[];
-    business: SeatInfo[];
+    comfortPlus: SeatInfo[];
     first: SeatInfo[];
+    deltaOne: SeatInfo[];
   };
   duration: string;
   gate?: string;

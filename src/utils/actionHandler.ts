@@ -257,28 +257,31 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
         const airline = airlines[Math.floor(Math.random() * airlines.length)];
         const flightNumber = `${airline}${1000 + Math.floor(Math.random() * 9000)}`;
         
-        // Generate available seats - make sure we have plenty of available seats
-        const economySeats = 50 + Math.floor(Math.random() * 50);
-        const businessSeats = 15 + Math.floor(Math.random() * 15);
-        const firstClassSeats = 5 + Math.floor(Math.random() * 5);
+        // Generate a mocked flight with economy, comfortPlus, first, and deltaOne seats
+        const economySeats = 100 + Math.floor(Math.random() * 50);
+        const comfortPlusSeats = 20 + Math.floor(Math.random() * 20);
+        const firstSeats = 10 + Math.floor(Math.random() * 10);
+        const deltaOneSeats = Math.random() > 0.5 ? (5 + Math.floor(Math.random() * 10)) : 0;
         
-        const generateSeats = (count: number, classType: 'economy' | 'business' | 'first'): any[] => {
+        const generateSeats = (count: number, classType: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'): any[] => {
           const seats = [];
-          const basePrice = classType === 'economy' ? 200 : classType === 'business' ? 800 : 1500;
+          const basePrice = classType === 'economy' ? 200 : 
+                          classType === 'comfortPlus' ? 350 : 
+                          classType === 'first' ? 800 : 1500;
           
+          // Create seat entries
           for (let i = 0; i < count; i++) {
             const row = Math.floor(i / 6) + 1;
-            const col = ['A', 'B', 'C', 'D', 'E', 'F'][i % 6];
+            const col = String.fromCharCode(65 + (i % 6));
             
-            // Make at least 90% of seats available to avoid "fully booked" issues
-            const status = Math.random() > 0.1 ? 'available' : 'occupied';
+            // 25% of seats are occupied
+            const isOccupied = Math.random() < 0.25;
             
             seats.push({
               seatNumber: `${row}${col}`,
               class: classType,
-              status,
-              price: Math.round(basePrice * (0.9 + Math.random() * 0.4)),
-              features: classType !== 'economy' ? ['Extra Legroom'] : []
+              status: isOccupied ? 'occupied' : 'available',
+              price: basePrice + Math.floor(Math.random() * 50)
             });
           }
           
@@ -299,8 +302,9 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
           terminal: Math.floor(Math.random() * 5) + 1,
           seats: {
             economy: generateSeats(economySeats, 'economy'),
-            business: generateSeats(businessSeats, 'business'),
-            first: generateSeats(firstClassSeats, 'first')
+            comfortPlus: generateSeats(comfortPlusSeats, 'comfortPlus'),
+            first: generateSeats(firstSeats, 'first'),
+            deltaOne: generateSeats(deltaOneSeats, 'deltaOne')
           }
         };
         
@@ -345,36 +349,49 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
 const bookFlight = (params: Record<string, string>): ActionResult => {
   const { flightNumber, seatClass } = params;
   
-  if (!flightNumber || !seatClass) {
+  if (!flightNumber) {
     return {
       success: false,
-      message: 'Missing required parameters: flightNumber and seatClass'
+      message: 'Missing required parameter: flightNumber'
+    };
+  }
+  
+  if (!seatClass || !['economy', 'comfortPlus', 'first', 'deltaOne'].includes(seatClass)) {
+    return {
+      success: false,
+      message: 'Invalid seat class. Please choose from: economy, comfortPlus, first, or deltaOne'
     };
   }
   
   try {
-    const validClass = seatClass as 'economy' | 'business' | 'first';
-    const success = dataManager.createBooking(flightNumber, validClass);
+    // Validate flight exists
+    const flight = dataManager.getFlight(flightNumber);
+    if (!flight) {
+      return {
+        success: false,
+        message: `Flight ${flightNumber} not found`
+      };
+    }
     
-    if (success) {
+    // Create booking
+    const validClass = seatClass as 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
+    const bookingCreated = dataManager.createBooking(flightNumber, validClass);
+    
+    if (bookingCreated) {
       return {
         success: true,
-        message: `Successfully booked flight ${flightNumber} in ${validClass} class`,
-        data: {
-          flightNumber,
-          seatClass: validClass
-        }
+        message: `Booking confirmed for flight ${flightNumber} in ${seatClass} class`
       };
     } else {
       return {
         success: false,
-        message: `Unable to book flight ${flightNumber}. The flight may be full or unavailable.`
+        message: `Unable to book flight ${flightNumber}. Please try again.`
       };
     }
-  } catch (error) {
+  } catch (error: any) {
     return {
       success: false,
-      message: `Error booking flight: ${error instanceof Error ? error.message : String(error)}`
+      message: `Error booking flight: ${error.message}`
     };
   }
 };
