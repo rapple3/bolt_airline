@@ -49,16 +49,15 @@ function App() {
   };
 
   const handleAgentHandoff = (reason: string) => {
-    const newHandoff: AgentHandoff = {
-      customerId: currentUser.id,
-      bookingDetails: dataManager.getBookings()[0] || mockBookings[0],
+    const handoff = {
+      customerId: currentUser.customerId,
+      bookingDetails: null,
       problemSummary: reason,
-      attemptedSolutions: messages
-        .filter(m => m.type === 'bot')
-        .map(m => m.content),
-      nextSteps: ['Review customer history', 'Assess specific needs', 'Provide personalized solution']
-    };
-    setHandoff(newHandoff);
+      attemptedSolutions: ['AI chatbot assistance'],
+      nextSteps: ['Transfer to human agent'],
+    } as AgentHandoff;
+    
+    setHandoff(handoff);
     setShowHandoffModal(true);
   };
 
@@ -175,8 +174,9 @@ function App() {
     setSidebarOpen(false);
   };
 
+  // Handler for flight booking confirmation
   const handleConfirmBooking = (flightNumber: string, seatClass: string) => {
-    // Get flight details from messages with pending confirmation
+    // Find the message with the pending confirmation
     const pendingMessage = messages.find(
       m => m.type === 'bot' && m.pendingConfirmation?.type === 'BOOK_FLIGHT'
     );
@@ -186,7 +186,16 @@ function App() {
     }
     
     const { flightDetails } = pendingMessage.pendingConfirmation;
-    const validClass = seatClass as 'economy' | 'business' | 'first';
+    // Map old seat classes to new ones if needed
+    let validClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
+    
+    if (seatClass === 'business') {
+      validClass = 'comfortPlus';
+    } else if (seatClass === 'economy' || seatClass === 'first' || seatClass === 'deltaOne') {
+      validClass = seatClass as 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
+    } else {
+      validClass = 'economy'; // Default fallback
+    }
     
     // Execute the booking action
     const success = dataManager.createBooking(flightNumber, validClass);
@@ -470,7 +479,6 @@ function App() {
           </div>
           <div className="hidden md:block">
             <UserSelector 
-              currentUserId={currentUser.id}
               onSelectUser={handleUserSelect}
             />
           </div>
@@ -534,7 +542,6 @@ function App() {
           
           <div className="mt-4 md:hidden">
             <UserSelector 
-              currentUserId={currentUser.id}
               onSelectUser={handleUserSelect}
             />
           </div>
