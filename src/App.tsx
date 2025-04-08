@@ -5,11 +5,11 @@ import { ChatInput } from './components/ChatInput';
 import UserProfileCard from './components/UserProfileCard';
 import UserSelector from './components/UserSelector';
 import { HandoffModal } from './components/HandoffModal';
+import { SeatChangeConfirmation } from './components/SeatChangeConfirmation';
 import { getChatResponse, resetChatHistory } from './utils/openai';
 import { mockBookings, mockUserProfile } from './data/mockData';
 import { Message, AgentHandoff, UserProfile } from './types';
 import { dataManager } from './utils/dataManager';
-import { SeatChangeConfirmation } from './components/SeatChangeConfirmation';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([{
@@ -293,7 +293,7 @@ function App() {
     const confirmationMessage: Message = {
       id: Date.now().toString(),
       type: 'bot',
-      content: `Your booking for flight ${flightNumber} has been confirmed!`,
+      content: `Your booking for flight ${flightNumber} has been confirmed! Your booking reference is ${bookingId}. Is there anything else I can help you with today?`,
       timestamp: new Date(),
       actionResult: {
         success: true,
@@ -383,7 +383,7 @@ function App() {
     const confirmationMessage: Message = {
       id: Date.now().toString(),
       type: 'bot',
-      content: `Your booking ${bookingReference} has been cancelled successfully.`,
+      content: `Your booking ${bookingReference} has been cancelled successfully. Is there anything else I can help you with today?`,
       timestamp: new Date(),
       actionResult: {
         success: true,
@@ -469,7 +469,7 @@ function App() {
     const confirmationMessage: Message = {
       id: Date.now().toString(),
       type: 'bot',
-      content: `Your booking has been changed to flight ${newFlightNumber} successfully.`,
+      content: `Your booking has been changed to flight ${newFlightNumber} successfully. Is there anything else I can help you with today?`,
       timestamp: new Date(),
       actionResult: {
         success: true,
@@ -562,7 +562,7 @@ function App() {
       const confirmationMessage: Message = {
         id: Date.now().toString(),
         type: 'bot',
-        content: `Your seat has been changed to ${seatNumber}${newClass ? ` in ${displayClass} class` : ''}. You'll receive email confirmation 72 hours before departure.`,
+        content: `Your seat has been changed to ${seatNumber}${newClass ? ` in ${displayClass} class` : ''}. You'll receive email confirmation 72 hours before departure. Is there anything else I can help you with today?`,
         timestamp: new Date(),
         actionResult: {
           success: true,
