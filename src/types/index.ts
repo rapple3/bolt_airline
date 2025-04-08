@@ -19,7 +19,7 @@ export interface Message {
 
 export interface SeatInfo {
   seatNumber: string;
-  class: 'economy' | 'business' | 'first';
+  class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
   status: 'available' | 'occupied' | 'selected';
   price: number;
   features?: string[];
@@ -30,13 +30,14 @@ export interface FlightData {
   departure: string;
   arrival: string;
   scheduledTime: string;
-  status: 'on-time' | 'delayed' | 'cancelled';
+  status: 'on time' | 'delayed' | 'cancelled' | 'departed' | 'arrived';
   delayReason?: string;
   aircraft: string;
   seats: {
     economy: SeatInfo[];
-    business: SeatInfo[];
+    comfortPlus: SeatInfo[];
     first: SeatInfo[];
+    deltaOne: SeatInfo[];
   };
   duration: string;
   gate?: string;
@@ -51,12 +52,12 @@ export interface BookingData {
   status: 'confirmed' | 'cancelled' | 'completed';
   seatInfo?: SeatInfo;
   checkedIn: boolean;
-  class: 'economy' | 'business' | 'first';
+  class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
 }
 
 export interface LoyaltyData {
   customerId: string;
-  tier: 'bronze' | 'silver' | 'gold' | 'platinum';
+  tier: 'blue' | 'silver' | 'gold' | 'platinum' | 'diamond';
   points: number;
   tierBenefits: string[];
 }
@@ -70,7 +71,7 @@ export interface AgentHandoff {
 }
 
 export interface UserProfile {
-  id: string;
+  customerId: string;
   name: string;
   email: string;
   avatarUrl: string;
@@ -78,9 +79,9 @@ export interface UserProfile {
   loyaltyPoints: number;
   upcomingFlights: BookingData[];
   preferences?: {
-    seatPreference: 'window' | 'aisle' | 'no preference';
+    seatPreference: 'window' | 'aisle' | 'middle';
     mealPreference?: string;
-    specialAssistance?: string[];
+    specialAssistance?: boolean;
   };
   activityLog?: Array<{
     timestamp: string;

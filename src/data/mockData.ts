@@ -3,38 +3,39 @@ import { FlightData, BookingData, LoyaltyData, UserProfile, SeatInfo } from '../
 // Cities with airport codes
 const airports = [
   { city: 'New York', code: 'JFK' },
-  { city: 'London', code: 'LHR' },
-  { city: 'Paris', code: 'CDG' },
-  { city: 'Dubai', code: 'DXB' },
-  { city: 'Tokyo', code: 'HND' },
-  { city: 'Singapore', code: 'SIN' },
+  { city: 'Atlanta', code: 'ATL' },
   { city: 'Los Angeles', code: 'LAX' },
-  { city: 'Sydney', code: 'SYD' },
-  { city: 'Hong Kong', code: 'HKG' },
-  { city: 'Delhi', code: 'DEL' },
-  { city: 'Frankfurt', code: 'FRA' },
+  { city: 'Detroit', code: 'DTW' },
+  { city: 'Minneapolis', code: 'MSP' },
+  { city: 'Seattle', code: 'SEA' },
+  { city: 'Boston', code: 'BOS' },
+  { city: 'Salt Lake City', code: 'SLC' },
+  { city: 'Paris', code: 'CDG' },
+  { city: 'London', code: 'LHR' },
   { city: 'Amsterdam', code: 'AMS' },
+  { city: 'Tokyo', code: 'HND' },
 ];
 
-// Aircraft types
+// Aircraft types used by Delta
 const aircraftTypes = [
-  { name: 'Boeing 787-9', economySeats: 180, businessSeats: 28, firstSeats: 8 },
-  { name: 'Airbus A320neo', economySeats: 150, businessSeats: 12, firstSeats: 0 },
-  { name: 'Boeing 777-300ER', economySeats: 210, businessSeats: 40, firstSeats: 8 },
-  { name: 'Airbus A350-900', economySeats: 190, businessSeats: 32, firstSeats: 6 },
-  { name: 'Airbus A380-800', economySeats: 320, businessSeats: 60, firstSeats: 12 },
+  { name: 'Boeing 737-900ER', economySeats: 180, comfortPlusSeats: 20, firstSeats: 20, deltaOneSeats: 0 },
+  { name: 'Airbus A321', economySeats: 150, comfortPlusSeats: 18, firstSeats: 20, deltaOneSeats: 0 },
+  { name: 'Boeing 767-300ER', economySeats: 165, comfortPlusSeats: 28, firstSeats: 26, deltaOneSeats: 36 },
+  { name: 'Airbus A350-900', economySeats: 226, comfortPlusSeats: 48, firstSeats: 0, deltaOneSeats: 32 },
+  { name: 'Boeing 777-200LR', economySeats: 218, comfortPlusSeats: 32, firstSeats: 0, deltaOneSeats: 28 },
 ];
 
 // Helper function to generate seat layout
 const generateSeats = (
   economyCount: number,
-  businessCount: number,
-  firstCount: number
-): { economy: SeatInfo[]; business: SeatInfo[]; first: SeatInfo[] } => {
+  comfortPlusCount: number,
+  firstCount: number,
+  deltaOneCount: number
+): { economy: SeatInfo[]; comfortPlus: SeatInfo[]; first: SeatInfo[]; deltaOne: SeatInfo[] } => {
   const generateSeatRange = (
     start: number,
     count: number,
-    className: 'economy' | 'business' | 'first'
+    className: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'
   ): SeatInfo[] => {
     return Array.from({ length: count }, (_, i) => {
       const row = Math.floor(i / 6) + start;
@@ -43,20 +44,28 @@ const generateSeats = (
         seatNumber: `${row}${col}`,
         class: className,
         status: Math.random() > 0.7 ? 'occupied' : 'available',
-        price: className === 'economy' ? 100 : className === 'business' ? 250 : 500,
-        features: className === 'economy' 
-          ? ['Standard Legroom', 'Regular Service']
-          : className === 'business'
-          ? ['Extra Legroom', 'Priority Service', 'Lounge Access']
-          : ['Suite', 'Full-Flat Bed', 'Premium Service', 'Lounge Access']
+        price: 
+          className === 'economy' ? 100 : 
+          className === 'comfortPlus' ? 170 : 
+          className === 'first' ? 300 : 
+          600,
+        features: 
+          className === 'economy' 
+            ? ['Standard Legroom', 'Complimentary Snacks', 'In-flight Entertainment'] 
+            : className === 'comfortPlus'
+            ? ['Extra Legroom', 'Priority Boarding', 'Dedicated Bin Space', 'Complimentary Alcoholic Beverages']
+            : className === 'first'
+            ? ['First Class Seating', 'Premium Meals', 'Priority Service', 'Sky Priority']
+            : ['180° Flat-Bed Seat', 'Premium Bedding', 'Noise-Canceling Headphones', 'Sky Priority', 'Lounge Access']
       };
     });
   };
 
   return {
-    economy: generateSeatRange(20, economyCount, 'economy'),
-    business: generateSeatRange(10, businessCount, 'business'),
-    first: generateSeatRange(1, firstCount, 'first')
+    economy: generateSeatRange(30, economyCount, 'economy'),
+    comfortPlus: generateSeatRange(20, comfortPlusCount, 'comfortPlus'),
+    first: generateSeatRange(10, firstCount, 'first'),
+    deltaOne: generateSeatRange(1, deltaOneCount, 'deltaOne')
   };
 };
 
@@ -85,22 +94,26 @@ const generateGate = (): string => {
   return `${terminal}${gateNumber}`;
 };
 
-// Generate random flight status
-const generateFlightStatus = (): { status: 'on-time' | 'delayed' | 'cancelled', delayReason?: string } => {
+// Generate random flight status using Delta terminology
+const generateFlightStatus = (): { status: 'on time' | 'delayed' | 'cancelled' | 'departed' | 'arrived', delayReason?: string } => {
   const rand = Math.random();
-  if (rand > 0.8) {
+  if (rand > 0.85) {
     const delayReasons = [
       'Weather conditions',
-      'Operational issues',
       'Air traffic control',
-      'Technical maintenance',
-      'Crew scheduling',
+      'Aircraft maintenance',
+      'Crew availability',
+      'Airport operations',
     ];
     return { status: 'delayed', delayReason: delayReasons[Math.floor(Math.random() * delayReasons.length)] };
   } else if (rand > 0.95) {
     return { status: 'cancelled' };
+  } else if (rand > 0.75) {
+    return { status: 'departed' };
+  } else if (rand > 0.65) {
+    return { status: 'arrived' };
   } else {
-    return { status: 'on-time' };
+    return { status: 'on time' };
   }
 };
 
@@ -120,21 +133,21 @@ const generateFlight = (id: number, date?: Date): FlightData => {
   const { status, delayReason } = generateFlightStatus();
   
   return {
-    flightNumber: `AI${100 + id}`,
+    flightNumber: `DL${1000 + id}`,
     departure: `${departure.city} (${departure.code})`,
     arrival: `${arrival.city} (${arrival.code})`,
     scheduledTime: formatDate(flightDate),
     status,
     ...(delayReason && { delayReason }),
     aircraft: aircraft.name,
-    seats: generateSeats(aircraft.economySeats, aircraft.businessSeats, aircraft.firstSeats),
+    seats: generateSeats(aircraft.economySeats, aircraft.comfortPlusSeats, aircraft.firstSeats, aircraft.deltaOneSeats),
     duration: generateDuration(),
     gate: generateGate(),
   };
 };
 
 // Generate a random seat from a flight
-const getRandomSeat = (flight: FlightData, seatClass: 'economy' | 'business' | 'first'): SeatInfo => {
+const getRandomSeat = (flight: FlightData, seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'): SeatInfo => {
   const availableSeats = flight.seats[seatClass].filter(seat => seat.status === 'available');
   if (availableSeats.length === 0) {
     return flight.seats[seatClass][0]; // Just return any seat if none available
@@ -142,71 +155,69 @@ const getRandomSeat = (flight: FlightData, seatClass: 'economy' | 'business' | '
   return { ...availableSeats[Math.floor(Math.random() * availableSeats.length)], status: 'occupied' };
 };
 
-// Customer names
-const customerNames = [
-  'John Smith',
-  'Emma Wilson',
-  'Michael Johnson',
-  'Sarah Lee',
-  'David Chen',
-  'Maria Garcia',
-  'James Brown',
-  'Olivia Davis',
-  'Robert Taylor',
-  'Sophia Martinez',
+// Define 5 specific customers with varying details
+const customers = [
+  {
+    id: 'CUST001',
+    name: 'Michael Johnson',
+    email: 'michael.johnson@example.com',
+    avatarUrl: '/avatars/avatar1.png',
+  },
+  {
+    id: 'CUST002',
+    name: 'Sarah Lee',
+    email: 'sarah.lee@example.com',
+    avatarUrl: '/avatars/avatar2.png',
+  },
+  {
+    id: 'CUST003',
+    name: 'David Chen',
+    email: 'david.chen@example.com',
+    avatarUrl: '/avatars/avatar3.png',
+  },
+  {
+    id: 'CUST004',
+    name: 'Maria Garcia',
+    email: 'maria.garcia@example.com',
+    avatarUrl: '/avatars/avatar4.png',
+  },
+  {
+    id: 'CUST005',
+    name: 'James Wilson',
+    email: 'james.wilson@example.com',
+    avatarUrl: '/avatars/avatar5.png',
+  },
 ];
-
-// Customer profile images
-const customerAvatars = [
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1520813792240-56fc4a3765a7?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-];
-
-// Generate a customer
-const generateCustomer = (id: number): { id: string, name: string, email: string, avatarUrl: string } => {
-  const name = customerNames[id % customerNames.length];
-  const email = name.toLowerCase().replace(' ', '.') + '@example.com';
-  const avatarUrl = customerAvatars[id % customerAvatars.length];
-  return {
-    id: `CUST${String(id).padStart(3, '0')}`,
-    name,
-    email,
-    avatarUrl,
-  };
-};
 
 // Generate a booking
 const generateBooking = (id: number, customerId: string, flight: FlightData): BookingData => {
-  const seatClassOptions: ('economy' | 'business' | 'first')[] = ['economy', 'business', 'first'];
+  const seatClassOptions: ('economy' | 'comfortPlus' | 'first' | 'deltaOne')[] = ['economy', 'comfortPlus', 'first', 'deltaOne'];
   const weightedRandom = Math.random();
-  // 70% economy, 25% business, 5% first
-  let seatClass: 'economy' | 'business' | 'first';
-  if (weightedRandom < 0.7) {
+  // 60% economy, 20% comfort+, 15% first class, 5% Delta One
+  let seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
+  if (weightedRandom < 0.6) {
     seatClass = 'economy';
+  } else if (weightedRandom < 0.8) {
+    seatClass = 'comfortPlus';
   } else if (weightedRandom < 0.95) {
-    seatClass = 'business';
-  } else {
     seatClass = 'first';
+  } else {
+    seatClass = 'deltaOne';
   }
   
-  // Check if first class exists on this flight
+  // Make sure the class exists on this flight
+  if (seatClass === 'deltaOne' && flight.seats.deltaOne.length === 0) {
+    seatClass = 'first';
+  }
   if (seatClass === 'first' && flight.seats.first.length === 0) {
-    seatClass = 'business';
+    seatClass = 'comfortPlus';
   }
   
   const seatInfo = getRandomSeat(flight, seatClass);
   const customer = customers.find(c => c.id === customerId) || customers[0];
   
   return {
-    bookingReference: `BK${String(id).padStart(5, '0')}`,
+    bookingReference: `DL${String(id).padStart(5, '0')}`,
     customerId,
     flightNumber: flight.flightNumber,
     passengerName: customer.name,
@@ -218,272 +229,198 @@ const generateBooking = (id: number, customerId: string, flight: FlightData): Bo
   };
 };
 
-// Generate loyalty data
+// Generate loyalty data with Delta SkyMiles status
 const generateLoyaltyData = (customerId: string): LoyaltyData => {
-  const tierOptions: ('bronze' | 'silver' | 'gold' | 'platinum')[] = ['bronze', 'silver', 'gold', 'platinum'];
-  const tierIndex = Math.floor(Math.random() * 4);
-  const tier = tierOptions[tierIndex];
+  // Delta SkyMiles tiers
+  const tierOptions: ('blue' | 'silver' | 'gold' | 'platinum' | 'diamond')[] = [
+    'blue', 'silver', 'gold', 'platinum', 'diamond'
+  ];
   
-  const baseBenefits = ['Priority Check-in', 'Bonus Miles on Flights'];
-  const silverBenefits = [...baseBenefits, 'Extra Baggage Allowance'];
-  const goldBenefits = [...silverBenefits, 'Lounge Access', 'Priority Boarding'];
-  const platinumBenefits = [...goldBenefits, 'Complimentary Upgrades', 'Partner Benefits'];
+  // Assign specific tiers to each customer for variety
+  const customerIndex = parseInt(customerId.replace('CUST', '')) - 1;
+  const tier = tierOptions[Math.min(customerIndex, tierOptions.length - 1)];
+  
+  // Define benefits based on Delta SkyMiles program
+  const blueBenefits = ['Earn 5 miles per $1 spent', 'Use miles for travel'];
+  const silverBenefits = [...blueBenefits, 'Unlimited complimentary upgrades', 'Priority Check-in', 'First Checked Bag Free'];
+  const goldBenefits = [...silverBenefits, 'SkyTeam Elite Plus status', 'Priority Boarding', 'Expedited Security'];
+  const platinumBenefits = [...goldBenefits, 'Choice Benefits Selection', 'Higher Upgrade Priority', 'Waived Award Redeposit Fees'];
+  const diamondBenefits = [...platinumBenefits, 'Delta Sky Club Access', 'Complimentary Clear Membership', 'Three Choice Benefits Selections'];
   
   const tierBenefits = 
-    tier === 'bronze' ? baseBenefits :
+    tier === 'blue' ? blueBenefits :
     tier === 'silver' ? silverBenefits :
     tier === 'gold' ? goldBenefits :
-    platinumBenefits;
+    tier === 'platinum' ? platinumBenefits :
+    diamondBenefits;
   
-  const points = (tierIndex + 1) * 15000 + Math.floor(Math.random() * 10000);
+  // SkyMiles points (realistic ranges)
+  const pointsMap = {
+    'blue': 5000 + Math.floor(Math.random() * 15000),
+    'silver': 25000 + Math.floor(Math.random() * 10000),
+    'gold': 50000 + Math.floor(Math.random() * 15000),
+    'platinum': 75000 + Math.floor(Math.random() * 25000),
+    'diamond': 125000 + Math.floor(Math.random() * 75000)
+  };
   
   return {
     customerId,
     tier,
-    points,
+    points: pointsMap[tier],
     tierBenefits,
   };
 };
 
-// Generate user profile
+// Generate user profile with varying number of upcoming flights
 const generateUserProfile = (customerId: string, bookings: BookingData[]): UserProfile => {
   const customer = customers.find(c => c.id === customerId) || customers[0];
-  const loyalty = loyaltyData.find(l => l.customerId === customerId) || loyaltyData[0];
+  const loyalty = generateLoyaltyData(customerId);
   
-  const upcomingFlights = bookings.filter(booking => 
-    booking.customerId === customerId && 
-    booking.status === 'confirmed' &&
-    new Date(booking.date) > new Date()
-  );
+  // Calculate a varying number of upcoming flights based on loyalty tier
+  const upcomingFlightCount = {
+    'blue': 1,
+    'silver': 2,
+    'gold': 3,
+    'platinum': 4,
+    'diamond': 5
+  }[loyalty.tier] || 1;
   
-  const seatPreferences: ('window' | 'aisle' | 'no preference')[] = ['window', 'aisle', 'no preference'];
-  const mealPreferences = ['regular', 'vegetarian', 'vegan', 'gluten-free', 'kosher'];
+  // Get upcoming flights for this customer
+  const customerBookings = bookings.filter(b => b.customerId === customerId);
+  const upcomingFlights = customerBookings.slice(0, upcomingFlightCount);
+  
+  // Calculate activity log entries - more entries for higher tiers
+  const activityCount = Math.min(5, customerBookings.length);
+  const activityLog = Array.from({ length: activityCount }, (_, i) => {
+    const booking = customerBookings[i];
+    const actionTypes = ['booking', 'check-in', 'baggage-drop', 'seat-change', 'view-status'];
+    const action = actionTypes[Math.floor(Math.random() * actionTypes.length)];
+    return {
+      timestamp: new Date(Date.now() - (i * 24 * 60 * 60 * 1000)).toISOString(),
+      action,
+      details: { bookingReference: booking.bookingReference, flightNumber: booking.flightNumber }
+    };
+  });
   
   return {
-    id: customerId,
+    customerId: customer.id,
     name: customer.name,
     email: customer.email,
     avatarUrl: customer.avatarUrl,
     loyaltyTier: loyalty.tier,
     loyaltyPoints: loyalty.points,
-    upcomingFlights,
     preferences: {
-      seatPreference: seatPreferences[Math.floor(Math.random() * seatPreferences.length)],
-      mealPreference: mealPreferences[Math.floor(Math.random() * mealPreferences.length)],
-      specialAssistance: Math.random() > 0.9 ? ['wheelchair'] : [],
-    }
+      seatPreference: ['window', 'aisle', 'middle'][Math.floor(Math.random() * 2)],
+      mealPreference: ['regular', 'vegetarian', 'kosher', 'halal', 'gluten-free'][Math.floor(Math.random() * 5)],
+      specialAssistance: Math.random() > 0.8
+    },
+    upcomingFlights,
+    activityLog
   };
 };
 
-// Generate data with a specified number of entities
+// Generate mock data
 export const generateMockData = (
-  flightCount: number = 10,
-  customerCount: number = 5,
-  bookingsPerCustomer: number = 3
+  flightCount: number = 20,
+  bookingsPerCustomer: number = 5
 ) => {
   // Generate flights
-  const flights = Array.from({ length: flightCount }, (_, i) => generateFlight(i + 1));
+  const flights: FlightData[] = Array.from({ length: flightCount }, (_, i) => generateFlight(i + 1));
   
-  // Generate customers
-  const customers = Array.from({ length: customerCount }, (_, i) => generateCustomer(i + 1));
-  
-  // Generate loyalty data for each customer
-  const loyaltyData = customers.map(customer => generateLoyaltyData(customer.id));
-  
-  // Generate bookings - each customer has several bookings with varying patterns
-  let bookingId = 1;
+  // Generate bookings for each customer
   const bookings: BookingData[] = [];
-  
-  customers.forEach((customer, index) => {
-    // Assign different booking patterns based on customer index
-    let customerBookingsCount;
-    
-    if (index === 0) {
-      // First user has no bookings
-      customerBookingsCount = 0;
-    } else if (index === 1) {
-      // Second user has exactly one upcoming booking
-      customerBookingsCount = 1;
-    } else if (index === 2) {
-      // Third user has exactly 3 upcoming bookings
-      customerBookingsCount = 3;
-    } else if (index === 3) {
-      // Fourth user has many upcoming bookings
-      customerBookingsCount = 5 + Math.floor(Math.random() * 3); // 5-7 bookings
-    } else {
-      // Other users have random booking counts
-      customerBookingsCount = Math.floor(Math.random() * bookingsPerCustomer) + 1;
-    }
-    
-    for (let i = 0; i < customerBookingsCount; i++) {
-      const randomFlightIndex = Math.floor(Math.random() * flights.length);
-      const booking = generateBooking(bookingId, customer.id, flights[randomFlightIndex]);
-      bookings.push(booking);
-      bookingId++;
+  customers.forEach((customer, customerIndex) => {
+    for (let i = 0; i < bookingsPerCustomer; i++) {
+      const flightIndex = (customerIndex * bookingsPerCustomer + i) % flights.length;
+      bookings.push(generateBooking(bookings.length + 1, customer.id, flights[flightIndex]));
     }
   });
   
-  // Generate user profiles
-  const userProfiles = customers.map(customer => 
-    generateUserProfile(customer.id, bookings)
-  );
+  // Generate user profile
+  const userProfile = generateUserProfile(customers[0].id, bookings);
+  
+  // Generate loyalty data
+  const loyalty: LoyaltyData[] = customers.map(customer => generateLoyaltyData(customer.id));
   
   return {
     flights,
     bookings,
-    loyaltyData,
-    userProfiles,
-    airlinePolicies: {
-      baggage: {
-        economyAllowance: '23kg',
-        businessAllowance: '32kg',
-        extraBaggageFee: '$50 per kg'
-      },
-      cancellation: {
-        deadline: '24 hours before departure',
-        refundPolicy: '80% refund if cancelled within policy'
-      },
-      rebooking: {
-        fee: '$100',
-        timeLimit: '2 hours before departure'
-      },
-      seatChange: {
-        fee: {
-          economy: '$25',
-          business: '$50',
-          first: '$75'
-        },
-        deadline: '2 hours before departure'
-      }
-    }
+    loyalty,
+    userProfile
   };
 };
 
-// Example usage:
-// 1. Generate default data with 10 flights, 5 customers, and up to 3 bookings per customer
-// const mockData = generateMockData();
+// Generate the initial mock data
+const initialData = generateMockData();
 
-// 2. Customize with your own parameters
-// const customMockData = generateMockData(20, 10, 5);
+// Export the mock data
+export const mockFlights = initialData.flights;
+export const mockBookings = initialData.bookings;
+export const mockLoyalty = initialData.loyalty;
+export const mockUserProfile = initialData.userProfile;
 
-// 3. Access individual elements 
-// const { flights, bookings, loyaltyData, userProfiles, airlinePolicies } = generateMockData();
-
-// Export data with fixed values (similar to the original)
-const customerCount = 10;
-const flightCount = 15;
-const bookingsPerCustomer = 3;
-
-// Pre-generate these for internal use when generating related data
-const customers = Array.from({ length: customerCount }, (_, i) => generateCustomer(i + 1));
-const loyaltyData = customers.map(customer => generateLoyaltyData(customer.id));
-
-// Generate flights with specific dates to ensure upcoming flights
-const now = new Date();
-const tomorrow = new Date(now);
-tomorrow.setDate(tomorrow.getDate() + 1);
-const nextWeek = new Date(now);
-nextWeek.setDate(nextWeek.getDate() + 7);
-const nextMonth = new Date(now);
-nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-// Create flights with specific dates to ensure they're upcoming
-export const mockFlights: FlightData[] = [
-  // Tomorrow flights
-  generateFlight(1, tomorrow),
-  generateFlight(2, tomorrow),
-  // Next week flights
-  generateFlight(3, nextWeek),
-  generateFlight(4, nextWeek),
-  // Next month flights
-  generateFlight(5, nextMonth),
-  generateFlight(6, nextMonth),
-  // Additional random flights
-  ...Array.from({ length: flightCount - 6 }, (_, i) => generateFlight(i + 7))
-];
-
-// Create bookings with varied patterns for each user
-let bookingId = 1;
-export const mockBookings: BookingData[] = [];
-
-customers.forEach((customer, index) => {
-  // Different booking patterns based on user
-  if (index === 0) {
-    // First user - no upcoming flights
-    // Add a past booking
-    const pastDate = new Date(now);
-    pastDate.setDate(pastDate.getDate() - 7);
-    
-    const pastFlight = generateFlight(100, pastDate);
-    const booking = generateBooking(bookingId, customer.id, pastFlight);
-    booking.status = 'completed'; // Mark as completed
-    mockBookings.push(booking);
-    bookingId++;
-  } 
-  else if (index === 1) {
-    // Second user - one upcoming flight (tomorrow)
-    const booking = generateBooking(bookingId, customer.id, mockFlights[0]); // Tomorrow flight
-    mockBookings.push(booking);
-    bookingId++;
-  }
-  else if (index === 2) {
-    // Third user - three upcoming flights (varied dates)
-    for (let i = 0; i < 3; i++) {
-      const booking = generateBooking(bookingId, customer.id, mockFlights[i]);
-      mockBookings.push(booking);
-      bookingId++;
-    }
-  }
-  else if (index === 3) {
-    // Fourth user - many upcoming flights (5+)
-    for (let i = 0; i < 5; i++) {
-      const booking = generateBooking(bookingId, customer.id, mockFlights[i % mockFlights.length]);
-      mockBookings.push(booking);
-      bookingId++;
-    }
-  }
-  else {
-    // Other users - random number of bookings
-    const bookingCount = Math.floor(Math.random() * 3) + 1;
-    for (let i = 0; i < bookingCount; i++) {
-      const randomFlightIndex = Math.floor(Math.random() * mockFlights.length);
-      const booking = generateBooking(bookingId, customer.id, mockFlights[randomFlightIndex]);
-      mockBookings.push(booking);
-      bookingId++;
-    }
-  }
-});
-
-export const mockLoyalty = loyaltyData;
-
-// Generate user profiles with the modified bookings
-export const mockUserProfiles = customers.map(customer => 
-  generateUserProfile(customer.id, mockBookings)
-);
-
-// Default to first user
-export const mockUserProfile = mockUserProfiles[0];
-
+// Export airline policies
 export const airlinePolicies = {
   baggage: {
-    economyAllowance: '23kg',
-    businessAllowance: '32kg',
-    extraBaggageFee: '$50 per kg'
+    carryOn: {
+      dimensions: '22 x 14 x 9 inches (56 x 35 x 23 cm)',
+      weight: '40 pounds (18 kg)',
+      items: 'One carry-on bag and one personal item',
+      restrictions: 'Liquids must be in containers of 3.4 oz (100 ml) or less'
+    },
+    checked: {
+      dimensions: 'Max linear dimension of 62 inches (158 cm)',
+      weight: 'Up to 50 pounds (23 kg)',
+      fees: {
+        first: 'Free for main cabin and above',
+        second: '$40',
+        additional: '$150 each',
+        overweight: 'Additional $100 for 51-70 pounds'
+      },
+      special: 'Sports equipment and musical instruments may have special policies'
+    }
   },
   cancellation: {
-    deadline: '24 hours before departure',
-    refundPolicy: '80% refund if cancelled within policy'
+    basic: 'Non-refundable, no changes allowed',
+    main: 'Changes permitted with fare difference, subject to $200 cancellation fee',
+    refundable: 'Fully refundable, changes allowed without fees',
+    twentyFourHour: 'Full refund if cancelled within 24 hours of booking and at least 7 days before departure'
   },
-  rebooking: {
-    fee: '$100',
-    timeLimit: '2 hours before departure'
+  check_in: {
+    online: 'Available 24 hours before departure',
+    mobile: 'Available through Delta mobile app',
+    airport: {
+      counter: 'Opens 3 hours before departure',
+      kiosk: 'Available 24 hours',
+      cutoff: 'Must be checked in at least 30 minutes before domestic flights, 60 minutes for international'
+    }
   },
-  seatChange: {
-    fee: {
-      economy: '$25',
-      business: '$50',
-      first: '$75'
+  seating: {
+    classes: {
+      economy: 'Standard seating with complimentary snacks and soft drinks',
+      comfortPlus: 'Extra legroom, dedicated bin space, premium snacks',
+      first: 'Premium seating with complimentary meals and alcoholic beverages',
+      deltaOne: 'Lie-flat seats on select long-haul international flights and premium domestic routes'
     },
-    deadline: '2 hours before departure'
+    selection: {
+      basic: 'Assigned at check-in',
+      standard: 'Available for selection at booking',
+      premium: 'Extra charge for preferred locations'
+    }
+  },
+  loyalty: {
+    program: 'Delta SkyMiles',
+    tiers: {
+      blue: 'Basic membership level',
+      silver: 'Requires 25,000 MQMs or 30 MQSs AND $3,000 MQDs',
+      gold: 'Requires 50,000 MQMs or 60 MQSs AND $6,000 MQDs',
+      platinum: 'Requires 75,000 MQMs or 100 MQSs AND $9,000 MQDs',
+      diamond: 'Requires 125,000 MQMs or 140 MQSs AND $15,000 MQDs'
+    },
+    benefits: {
+      mileageEarning: 'Earn miles based on ticket price and status',
+      mileageRedemption: 'Redeem miles for flights, upgrades, and more',
+      partnerEarning: 'Earn miles with SkyTeam partners and other Delta partners'
+    }
   }
 };
