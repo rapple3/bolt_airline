@@ -10,7 +10,7 @@ interface UserProfileCardProps {
 
 export default function UserProfileCard({ profile: propProfile }: UserProfileCardProps) {
   const [profile, setProfile] = useState<UserProfile>(propProfile || dataManager.getUserProfile());
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   
   useEffect(() => {
     console.log('Setting up subscription');
@@ -101,21 +101,35 @@ export default function UserProfileCard({ profile: propProfile }: UserProfileCar
                   profile.upcomingFlights.map((flight) => (
                     <div
                       key={flight.bookingReference}
-                      className="bg-gray-50 p-3 rounded-md flex items-center gap-3"
+                      className="bg-gray-50 p-3 rounded-md flex flex-col gap-2"
                     >
-                      <Plane className="w-4 h-4 text-blue-500" />
-                      <div>
-                        <p className="text-sm font-medium">
-                          Flight {flight.flightNumber}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(flight.date), 'MMM d, yyyy')}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Plane className="w-4 h-4 text-blue-500" />
+                          <div>
+                            <p className="text-sm font-medium">
+                              Flight {flight.flightNumber}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(flight.date), 'MMM d, yyyy')}
+                            </div>
+                          </div>
                         </div>
+                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">
+                          {flight.status}
+                        </span>
                       </div>
-                      <span className="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">
-                        {flight.status}
-                      </span>
+                      {flight.seatInfo && (
+                        <div className="text-xs text-gray-600 flex justify-between border-t border-gray-200 pt-2 mt-1">
+                          <div>
+                            <span className="font-medium">Seat:</span> {flight.seatInfo.seatNumber}
+                          </div>
+                          <div className="capitalize">
+                            <span className="font-medium">Class:</span> {flight.class}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 ) : (

@@ -340,8 +340,10 @@ export const generateMockData = (
     }
   });
   
-  // Generate user profile
-  const userProfile = generateUserProfile(customers[0].id, bookings);
+  // Generate user profiles for all customers
+  const userProfiles: UserProfile[] = customers.map(customer => 
+    generateUserProfile(customer.id, bookings)
+  );
   
   // Generate loyalty data
   const loyalty: LoyaltyData[] = customers.map(customer => generateLoyaltyData(customer.id));
@@ -350,7 +352,7 @@ export const generateMockData = (
     flights,
     bookings,
     loyalty,
-    userProfile
+    userProfiles
   };
 };
 
@@ -361,7 +363,8 @@ const initialData = generateMockData();
 export const mockFlights = initialData.flights;
 export const mockBookings = initialData.bookings;
 export const mockLoyalty = initialData.loyalty;
-export const mockUserProfile = initialData.userProfile;
+export const mockUserProfiles = initialData.userProfiles;
+export const mockUserProfile = initialData.userProfiles[0];
 
 // Export airline policies
 export const airlinePolicies = {

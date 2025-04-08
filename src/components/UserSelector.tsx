@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { mockUserProfile } from '../data/mockData';
-import { dataManager } from '../utils/dataManager';
+import { mockUserProfiles } from '../data/mockData';
 import { ChevronDown, Award } from 'lucide-react';
 
 interface UserSelectorProps {
   onSelectUser: (profile: UserProfile) => void;
+  currentUserId: string;
 }
 
-export default function UserSelector({ onSelectUser }: UserSelectorProps) {
+export default function UserSelector({ onSelectUser, currentUserId }: UserSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  // Get the current user profile
-  const currentProfile = dataManager.getUserProfile();
+  // Use the mockUserProfiles to get the list of profiles
+  const profiles = mockUserProfiles;
+  const currentProfile = profiles.find(p => p.customerId === currentUserId) || profiles[0];
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -63,14 +64,41 @@ export default function UserSelector({ onSelectUser }: UserSelectorProps) {
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* For this version, we'll disable the dropdown since we only have one profile */}
+      {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-lg z-50 py-2">
-          <div className="px-4 py-2 text-center text-sm text-gray-500">
-            User selection has been simplified in this Delta Airlines version.
-            <br /><br />
-            Currently using the profile of: <span className="font-medium">{currentProfile.name}</span>
-          </div>
+          {profiles.map(profile => (
+            <button
+              key={profile.customerId}
+              onClick={() => {
+                onSelectUser(profile);
+                setIsOpen(false);
+              }}
+              className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                profile.customerId === currentUserId ? 'bg-blue-50' : ''
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden">
+                  <img 
+                    src={profile.avatarUrl} 
+                    alt={profile.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div>
+                  <p className="font-medium">{profile.name}</p>
+                  <div className="flex items-center gap-1">
+                    <Award className={`w-3 h-3 ${getTierColor(profile.loyaltyTier)}`} />
+                    <p className="text-sm text-gray-500 capitalize">{profile.loyaltyTier} Member</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {profile.upcomingFlights.length} upcoming flights
+                  </p>
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
       )}
     </div>

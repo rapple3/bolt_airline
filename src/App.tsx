@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plane, RotateCcw, Search, MapPin, Menu, X, User } from 'lucide-react';
+import { Plane, RotateCcw, Search, MapPin, Menu, X, User, ChevronUp, ChevronDown } from 'lucide-react';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
 import UserProfileCard from './components/UserProfileCard';
@@ -22,6 +22,7 @@ function App() {
   const [showHandoffModal, setShowHandoffModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(dataManager.getUserProfile());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [testMenuOpen, setTestMenuOpen] = useState(false);
 
   useEffect(() => {
     // Subscribe to user profile changes
@@ -44,6 +45,7 @@ function App() {
     
     // Update the data manager with the new user
     dataManager.setUserProfile(profile);
+    setCurrentUser(profile); // Update local state immediately
     // Close sidebar on mobile after selection
     setSidebarOpen(false);
   };
@@ -479,6 +481,7 @@ function App() {
           </div>
           <div className="hidden md:block">
             <UserSelector 
+              currentUserId={currentUser.customerId}
               onSelectUser={handleUserSelect}
             />
           </div>
@@ -514,36 +517,56 @@ function App() {
           
           <UserProfileCard profile={currentUser} />
           
-          <div className="mt-4 space-y-2">
-            <button
-              onClick={handleResetData}
-              className="flex items-center justify-center w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-700 transition-colors"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset Data & Flights
-            </button>
+          <div className="mt-auto">
+            <div className="mt-4 md:hidden">
+              <UserSelector 
+                currentUserId={currentUser.customerId}
+                onSelectUser={handleUserSelect}
+              />
+            </div>
             
-            <button
-              onClick={handleTestFlightSearch}
-              className="flex items-center justify-center w-full py-2 px-4 bg-blue-100 hover:bg-blue-200 rounded-md text-blue-700 transition-colors"
-            >
-              <Search className="w-4 h-4 mr-2" />
-              Test Common Routes
-            </button>
-            
-            <button
-              onClick={handleTestUncommonRoute}
-              className="flex items-center justify-center w-full py-2 px-4 bg-purple-100 hover:bg-purple-200 rounded-md text-purple-700 transition-colors"
-            >
-              <MapPin className="w-4 h-4 mr-2" />
-              Test Uncommon Routes
-            </button>
-          </div>
-          
-          <div className="mt-4 md:hidden">
-            <UserSelector 
-              onSelectUser={handleUserSelect}
-            />
+            {/* Testing features menu at the bottom */}
+            <div className="mt-8 border-t border-gray-200 pt-4">
+              <button
+                onClick={() => setTestMenuOpen(!testMenuOpen)}
+                className="flex items-center justify-between w-full p-2 text-gray-600 hover:bg-gray-100 rounded"
+              >
+                <span className="font-medium">Testing Features</span>
+                {testMenuOpen ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
+              
+              {testMenuOpen && (
+                <div className="mt-2 space-y-2 pl-2">
+                  <button
+                    onClick={handleResetData}
+                    className="flex items-center w-full py-2 px-3 text-sm hover:bg-gray-100 rounded-md text-gray-700 transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset Data & Flights
+                  </button>
+                  
+                  <button
+                    onClick={handleTestFlightSearch}
+                    className="flex items-center w-full py-2 px-3 text-sm hover:bg-gray-100 rounded-md text-blue-600 transition-colors"
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    Test Common Routes
+                  </button>
+                  
+                  <button
+                    onClick={handleTestUncommonRoute}
+                    className="flex items-center w-full py-2 px-3 text-sm hover:bg-gray-100 rounded-md text-purple-600 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Test Uncommon Routes
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </aside>
 
