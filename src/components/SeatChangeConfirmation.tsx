@@ -252,6 +252,43 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
         </div>
       )}
       
+      {/* Add upgrade confirmation dialog */}
+      {showUpgradeConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Upgrade</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to upgrade to {selectedUpgradeTier} for this flight? 
+              {upgradeOptions.find(o => o.tier === selectedUpgradeTier)?.complimentary 
+                ? " This upgrade is complimentary with your loyalty status."
+                : ` This will cost $${upgradeOptions.find(o => o.tier === selectedUpgradeTier)?.price}.`}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowUpgradeConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowUpgradeConfirm(false);
+                  setLoading(true);
+                  // Delay to simulate API call
+                  setTimeout(() => {
+                    onConfirm(selectedSeat, selectedUpgradeTier);
+                    setLoading(false);
+                  }, 1000);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Confirm Upgrade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className={styles.actions}>
         <button 
           className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors flex justify-center items-center"
