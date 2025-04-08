@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
 import { Message } from '../types';
 import { User, Bot, Clock, Star, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -160,7 +160,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               bookingReference={pendingConfirmation.bookingReference}
               bookingDetails={getBookingDetails(pendingConfirmation.bookingReference)}
               targetClass={(pendingConfirmation.targetClass || 'economy') as 'economy' | 'comfortPlus' | 'first' | 'deltaOne'}
-              seatPreference={(pendingConfirmation.seatPreference || 'aisle') as 'window' | 'aisle' | 'middle'}
+              seatPreference={(pendingConfirmation.seatPreference || 'aisle') as 'window' | 'aisle' | 'middle' | 'any'}
               onConfirm={handleSeatConfirm}
               onCancel={handleSeatCancel}
             />

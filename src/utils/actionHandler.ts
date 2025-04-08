@@ -468,31 +468,63 @@ const changeFlight = (params: Record<string, string>): ActionResult => {
 };
 
 const changeSeat = (params: Record<string, string>): ActionResult => {
-  const { bookingReference, newSeatNumber } = params;
+  const { bookingReference, newSeatNumber, seatPreference, targetClass } = params;
   
-  if (!bookingReference || !newSeatNumber) {
+  if (!bookingReference) {
     return {
       success: false,
-      message: 'Missing required parameters: bookingReference and newSeatNumber'
+      message: 'Missing required parameter: bookingReference'
     };
   }
   
   try {
-    const success = dataManager.changeSeat(bookingReference, newSeatNumber);
+    // Get the booking
+    const bookings = dataManager.getBookings();
+    const booking = bookings.find(b => b.bookingReference === bookingReference);
     
-    if (success) {
+    if (!booking) {
+      return {
+        success: false,
+        message: `Booking ${bookingReference} not found`
+      };
+    }
+    
+    // If a specific seat number is provided, try to change to that seat
+    if (newSeatNumber) {
+      const success = dataManager.changeSeat(bookingReference, newSeatNumber);
+      
+      if (success) {
+        return {
+          success: true,
+          message: `Successfully changed seat for booking ${bookingReference} to seat ${newSeatNumber}`,
+          data: {
+            bookingReference,
+            newSeatNumber
+          }
+        };
+      } else {
+        return {
+          success: false,
+          message: `Unable to change seat for booking ${bookingReference}. The seat may not be available.`
+        };
+      }
+    } 
+    // If seat preference and/or target class are provided, return them for the UI to handle
+    else if (seatPreference || targetClass) {
       return {
         success: true,
-        message: `Successfully changed seat for booking ${bookingReference} to seat ${newSeatNumber}`,
+        message: `Seat change options for booking ${bookingReference}`,
         data: {
           bookingReference,
-          newSeatNumber
+          bookingDetails: booking,
+          seatPreference: seatPreference || 'any',
+          targetClass: targetClass || booking.class
         }
       };
     } else {
       return {
         success: false,
-        message: `Unable to change seat for booking ${bookingReference}. The seat may not be available.`
+        message: 'Missing seat details: Please provide either newSeatNumber or seatPreference'
       };
     }
   } catch (error) {

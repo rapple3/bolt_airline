@@ -22,10 +22,10 @@ const styles = {
 
 interface SeatChangeConfirmationProps {
   bookingReference: string;
-  bookingDetails?: BookingData;
-  targetClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
-  seatPreference?: 'window' | 'middle' | 'aisle';
-  onConfirm: (seatNumber: string, upgradeTier?: string) => void;
+  bookingDetails: any;
+  targetClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
+  seatPreference: 'window' | 'aisle' | 'middle' | 'any';
+  onConfirm: (seatNumber: string, upgradeClass?: string) => void;
   onCancel: () => void;
 }
 
@@ -52,6 +52,8 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
   const [loading, setLoading] = useState(true);
   const [loyaltyVerified, setLoyaltyVerified] = useState(true);
   const [selectedUpgradeTier, setSelectedUpgradeTier] = useState<string>('');
+  const [errorAlert, setErrorAlert] = useState<string>("");
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
 
   useEffect(() => {
     // Load flight and seats
@@ -134,8 +136,30 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
     setUpgradeConfirmed(true);
   };
   
-  const handleFinalConfirmation = () => {
-    onConfirm(selectedSeat, upgradeConfirmed ? selectedUpgradeTier : undefined);
+  const handleConfirmClick = () => {
+    if (!selectedSeat) {
+      setErrorAlert("Please select a seat first");
+      setTimeout(() => setErrorAlert(""), 3000);
+      return;
+    }
+
+    // Clear any previous errors
+    setErrorAlert("");
+    
+    // If an upgrade is selected, show the upgrade confirmation alert
+    if (selectedUpgradeTier && selectedUpgradeTier !== bookingDetails?.class) {
+      setShowUpgradeConfirm(true);
+      return;
+    }
+    
+    // Otherwise just confirm the seat change
+    setLoading(true);
+    
+    // Delay to simulate API call
+    setTimeout(() => {
+      onConfirm(selectedSeat, selectedUpgradeTier);
+      setLoading(false);
+    }, 1000);
   };
   
   const getTierColor = (tier: string): string => {
@@ -238,7 +262,7 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
         </button>
         <button 
           disabled={!selectedSeat} 
-          onClick={handleFinalConfirmation}
+          onClick={handleConfirmClick}
           className={`flex-1 py-2 px-4 ${!selectedSeat ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-md transition-colors flex justify-center items-center`}
         >
           <Check className="w-4 h-4 mr-2" />
