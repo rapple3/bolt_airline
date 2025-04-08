@@ -48,7 +48,6 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
   const [upgradeOptions, setUpgradeOptions] = useState<{ tier: string; price: number; complimentary: boolean }[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>(dataManager.getUserProfile());
   const [flight, setFlight] = useState<FlightData | null>(null);
-  const [upgradeConfirmed, setUpgradeConfirmed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loyaltyVerified, setLoyaltyVerified] = useState(true);
   const [selectedUpgradeTier, setSelectedUpgradeTier] = useState<string>('');
@@ -90,38 +89,62 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
   
   useEffect(() => {
     // Check for upgrade eligibility based on user loyalty
-    if (!userProfile) return;
+    if (!userProfile || !bookingDetails) return;
+    
+    // Define the cabin classes in order from lowest to highest
+    const cabinHierarchy = ['economy', 'comfortPlus', 'first', 'deltaOne'];
+    // Get the current cabin class index
+    const currentClassIndex = cabinHierarchy.indexOf(bookingDetails.class);
     
     const isGoldOrHigher = ['gold', 'platinum', 'diamond'].includes(userProfile.loyaltyTier);
+    let availableUpgrades: { tier: string; price: number; complimentary: boolean }[] = [];
     
-    if (isGoldOrHigher) {
-      setUpgradeOptions([{
-        tier: 'Comfort+',
-        price: 0,
-        complimentary: true
-      }]);
-      
-      // Add first class for platinum and diamond
+    // Only add Comfort+ if the current class is lower than Comfort+
+    if (currentClassIndex < cabinHierarchy.indexOf('comfortPlus')) {
+      if (isGoldOrHigher) {
+        availableUpgrades.push({
+          tier: 'Comfort+',
+          price: 0,
+          complimentary: true
+        });
+      } else {
+        availableUpgrades.push({
+          tier: 'Comfort+',
+          price: 75,
+          complimentary: false
+        });
+      }
+    }
+    
+    // Only add First Class if the current class is lower than First Class
+    if (currentClassIndex < cabinHierarchy.indexOf('first')) {
       if (['platinum', 'diamond'].includes(userProfile.loyaltyTier)) {
-        setUpgradeOptions(prev => [...prev, {
+        availableUpgrades.push({
           tier: 'First Class',
           price: 0,
           complimentary: true
-        }]);
+        });
+      } else {
+        availableUpgrades.push({
+          tier: 'First Class',
+          price: 250,
+          complimentary: false
+        });
       }
-    } else {
-      // For non-elite members or Silver, offer paid upgrade
-      setUpgradeOptions([{
-        tier: 'Comfort+',
-        price: 75,
-        complimentary: false
-      }, {
-        tier: 'First Class',
-        price: 250,
-        complimentary: false
-      }]);
     }
-  }, [userProfile]);
+    
+    // Only add Delta One if the current class is lower than Delta One
+    if (currentClassIndex < cabinHierarchy.indexOf('deltaOne')) {
+      // Delta One is a premium option even for high status tiers
+      availableUpgrades.push({
+        tier: 'Delta One',
+        price: userProfile.loyaltyTier === 'diamond' ? 0 : 450,
+        complimentary: userProfile.loyaltyTier === 'diamond'
+      });
+    }
+    
+    setUpgradeOptions(availableUpgrades);
+  }, [userProfile, bookingDetails]);
   
   const handleSeatSelect = (seatNumber: string) => {
     setSelectedSeat(seatNumber);
@@ -129,11 +152,13 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
   
   const handleConfirmUpgrade = (tier: string) => {
     if (!selectedSeat) {
-      alert('Please select a seat first.');
+      setErrorAlert("Please select a seat first");
+      setTimeout(() => setErrorAlert(""), 3000);
       return;
     }
+    // Just select the upgrade tier without showing confirmation yet
     setSelectedUpgradeTier(tier);
-    setUpgradeConfirmed(true);
+    // Don't set upgradeConfirmed here; it will be set later after final confirmation
   };
   
   const handleConfirmClick = () => {
@@ -187,6 +212,12 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
         <h3 className="font-medium text-gray-800">Seat Change Request for Booking {bookingReference}</h3>
       </div>
       
+      {errorAlert && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md mb-3">
+          {errorAlert}
+        </div>
+      )}
+      
       <div className={styles.statusBar}>
         <h4 className="text-sm font-medium text-gray-700">SkyMiles Status:</h4>
         <span className={`text-sm font-medium capitalize ${getTierColor(userProfile.loyaltyTier)}`}>
@@ -230,25 +261,24 @@ export const SeatChangeConfirmation: React.FC<SeatChangeConfirmationProps> = ({
                   </span>
                   <button 
                     onClick={() => handleConfirmUpgrade(option.tier)}
-                    className="bg-blue-500 text-white rounded-md px-4 py-2 text-sm hover:bg-blue-600"
+                    className={`bg-blue-500 text-white rounded-md px-4 py-2 text-sm hover:bg-blue-600 ${
+                      selectedUpgradeTier === option.tier ? 'bg-blue-700 ring-2 ring-blue-300' : ''
+                    }`}
                   >
-                    {option.complimentary ? 'Request Upgrade' : 'Purchase Upgrade'}
+                    {selectedUpgradeTier === option.tier ? 'Selected' : 'Select'}
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-600">No upgrade options available for your status.</p>
+            <p className="text-sm text-gray-600">
+              {bookingDetails?.class === 'deltaOne' 
+                ? "You're already in our highest class of service (Delta One)." 
+                : bookingDetails?.class === 'first' && !upgradeOptions.length
+                  ? "No higher cabin classes available for this flight. You're already in First Class."
+                  : "No upgrade options available for your status."}
+            </p>
           )}
-        </div>
-      )}
-      
-      {upgradeConfirmed && (
-        <div className={styles.confirmation}>
-          <h5 className="font-medium text-green-800 mb-1">Upgrade Request Confirmed</h5>
-          <p className="text-sm text-green-700">
-            Your upgrade will be processed 72 hours before departure based on availability.
-          </p>
         </div>
       )}
       
