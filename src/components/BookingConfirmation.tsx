@@ -4,7 +4,7 @@ import { FlightData } from '../types';
 
 interface BookingConfirmationProps {
   flightNumber: string;
-  seatClass: 'economy' | 'business' | 'first';
+  seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
   flightDetails: FlightData;
   onConfirm: () => void;
   onCancel: () => void;

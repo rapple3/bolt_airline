@@ -17,7 +17,7 @@ interface FlightOption {
 
 interface FlightOptionsProps {
   flights: FlightOption[];
-  onSelect: (flightNumber: string, seatClass: 'economy' | 'business' | 'first') => void;
+  onSelect: (flightNumber: string, seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne') => void;
   actionType?: 'book' | 'change';
 }
 
@@ -27,13 +27,13 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
   actionType = 'book' 
 }) => {
   const [selectedFlight, setSelectedFlight] = useState<string | null>(null);
-  const [selectedClass, setSelectedClass] = useState<'economy' | 'business' | 'first'>('economy');
+  const [selectedClass, setSelectedClass] = useState<'economy' | 'comfortPlus' | 'first' | 'deltaOne'>('economy');
   
   const handleFlightSelect = (flightNumber: string) => {
     setSelectedFlight(flightNumber);
   };
   
-  const handleClassSelect = (seatClass: 'economy' | 'business' | 'first') => {
+  const handleClassSelect = (seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne') => {
     setSelectedClass(seatClass);
   };
   
@@ -106,7 +106,7 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                 <p className="font-medium">{flight.economySeats} seats</p>
               </div>
               <div className="text-center">
-                <p className="text-gray-500">Business</p>
+                <p className="text-gray-500">Comfort+</p>
                 <p className="font-medium">{flight.businessSeats} seats</p>
               </div>
               <div className="text-center">
@@ -134,13 +134,13 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
             </button>
             <button
               className={`px-3 py-2 rounded-md text-sm ${
-                selectedClass === 'business'
+                selectedClass === 'comfortPlus'
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
-              onClick={() => handleClassSelect('business')}
+              onClick={() => handleClassSelect('comfortPlus')}
             >
-              Business
+              Comfort+
             </button>
             <button
               className={`px-3 py-2 rounded-md text-sm ${
@@ -151,6 +151,16 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
               onClick={() => handleClassSelect('first')}
             >
               First Class
+            </button>
+            <button
+              className={`px-3 py-2 rounded-md text-sm ${
+                selectedClass === 'deltaOne'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => handleClassSelect('deltaOne')}
+            >
+              Delta One
             </button>
           </div>
           

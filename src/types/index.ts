@@ -7,13 +7,17 @@ export interface Message {
   timestamp: Date;
   actionResult?: ActionResult;
   pendingConfirmation?: {
-    type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT';
+    type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT' | 'CHANGE_SEAT';
     flightNumber?: string;
     seatClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
     flightDetails?: FlightData;
     bookingReference?: string;
     newFlightNumber?: string;
     newFlightDetails?: FlightData;
+    newSeatNumber?: string;
+    targetClass?: string;
+    seatPreference?: 'window' | 'aisle' | 'middle' | 'any';
+    bookingDetails?: BookingData;
   };
 }
 

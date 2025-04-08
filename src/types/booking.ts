@@ -10,4 +10,6 @@ export interface BookingData {
   seatInfo?: SeatInfo;
   checkedIn: boolean;
   class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
+  createdAt?: string;
+  fareType?: 'basic' | 'main' | 'refundable';
 } 

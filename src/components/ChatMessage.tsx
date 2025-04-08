@@ -1,11 +1,12 @@
 import React from 'react';
 import { Message } from '../types';
-import { User, Bot } from 'lucide-react';
+import { User, Bot, Clock, Star, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ActionResultCard } from './ActionResult';
 import { BookingConfirmation } from './BookingConfirmation';
 import { CancellationConfirmation } from './CancellationConfirmation';
 import { ChangeFlightConfirmation } from './ChangeFlightConfirmation';
+import { SeatChangeConfirmation } from './SeatChangeConfirmation';
 import { dataManager } from '../utils/dataManager';
 
 interface ChatMessageProps {
@@ -16,6 +17,9 @@ interface ChatMessageProps {
   onCancelCancellation?: () => void;
   onConfirmChange?: (bookingReference: string, newFlightNumber: string) => void;
   onCancelChange?: () => void;
+  onConfirmSeatChange?: (bookingReference: string, seatNumber: string, newClass: string) => void;
+  onCancelSeatChange?: () => void;
+  onHandoffRequest?: (reason: string) => void;
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({ 
@@ -25,7 +29,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   onConfirmCancellation,
   onCancelCancellation,
   onConfirmChange,
-  onCancelChange
+  onCancelChange,
+  onConfirmSeatChange,
+  onCancelSeatChange,
+  onHandoffRequest
 }) => {
   const { type, content, timestamp, actionResult, pendingConfirmation } = message;
 
@@ -41,32 +48,29 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return flights.find(f => f.flightNumber === flightNumber) || null;
   };
 
-  return (
-    <div className={`flex gap-3 ${type === 'user' ? 'justify-end' : ''}`}>
-      {type === 'bot' && (
-        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-          <Bot size={16} className="text-blue-600" />
-        </div>
-      )}
-      
-      <div className={`max-w-[80%] ${type === 'user' ? 'order-1' : 'order-2'}`}>
-        <div
-          className={`rounded-lg p-3 ${
-            type === 'user'
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 text-gray-800'
-          }`}
-        >
-          <p className="whitespace-pre-wrap">{content}</p>
-        </div>
-        
-        {/* Display booking confirmation if present */}
-        {type === 'bot' && pendingConfirmation?.type === 'BOOK_FLIGHT' && pendingConfirmation.flightNumber && pendingConfirmation.flightDetails && (
-          <div className="mt-2">
+  // Format the timestamp
+  const formatTime = (timestamp: Date) => {
+    return timestamp.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Render the message content
+  const renderContent = () => {
+    // If there's a pending confirmation, render a confirmation component
+    if (pendingConfirmation) {
+      // For booking confirmations
+      if (pendingConfirmation.type === 'BOOK_FLIGHT' && 
+          pendingConfirmation.flightNumber && 
+          pendingConfirmation.flightDetails) {
+        return (
+          <>
+            <div className="whitespace-pre-wrap mb-3">{content}</div>
             <BookingConfirmation
-              flightNumber={pendingConfirmation.flightNumber}
-              seatClass={pendingConfirmation.seatClass || 'economy'}
               flightDetails={pendingConfirmation.flightDetails}
+              flightNumber={pendingConfirmation.flightNumber}
+              seatClass={(pendingConfirmation.seatClass || 'economy') as 'economy' | 'comfortPlus' | 'first' | 'deltaOne'}
               onConfirm={() => {
                 if (onConfirmBooking && pendingConfirmation.seatClass) {
                   onConfirmBooking(
@@ -75,18 +79,18 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                   );
                 }
               }}
-              onCancel={() => {
-                if (onCancelBooking) {
-                  onCancelBooking();
-                }
-              }}
+              onCancel={onCancelBooking || (() => {})}
             />
-          </div>
-        )}
-        
-        {/* Display cancellation confirmation if present */}
-        {type === 'bot' && pendingConfirmation?.type === 'CANCEL_BOOKING' && pendingConfirmation.bookingReference && (
-          <div className="mt-2">
+          </>
+        );
+      }
+      
+      // For cancellation confirmations
+      if (pendingConfirmation.type === 'CANCEL_BOOKING' && 
+          pendingConfirmation.bookingReference) {
+        return (
+          <>
+            <div className="whitespace-pre-wrap mb-3">{content}</div>
             <CancellationConfirmation
               bookingReference={pendingConfirmation.bookingReference}
               bookingDetails={getBookingDetails(pendingConfirmation.bookingReference)}
@@ -95,27 +99,22 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                   onConfirmCancellation(pendingConfirmation.bookingReference as string);
                 }
               }}
-              onCancel={() => {
-                if (onCancelCancellation) {
-                  onCancelCancellation();
-                }
-              }}
+              onCancel={onCancelCancellation || (() => {})}
             />
-          </div>
-        )}
-        
-        {/* Display change flight confirmation if present */}
-        {type === 'bot' && pendingConfirmation?.type === 'CHANGE_FLIGHT' && 
-         pendingConfirmation.bookingReference && pendingConfirmation.newFlightNumber && 
-         pendingConfirmation.newFlightDetails && (
-          <div className="mt-2">
+          </>
+        );
+      }
+      
+      // For flight change confirmations
+      if (pendingConfirmation.type === 'CHANGE_FLIGHT' && 
+          pendingConfirmation.bookingReference &&
+          pendingConfirmation.newFlightNumber &&
+          pendingConfirmation.newFlightDetails) {
+        return (
+          <>
+            <div className="whitespace-pre-wrap mb-3">{content}</div>
             <ChangeFlightConfirmation
               bookingReference={pendingConfirmation.bookingReference}
-              currentFlight={
-                pendingConfirmation.flightNumber 
-                  ? getFlightDetails(pendingConfirmation.flightNumber) 
-                  : null
-              }
               newFlightNumber={pendingConfirmation.newFlightNumber}
               newFlightDetails={pendingConfirmation.newFlightDetails}
               onConfirm={() => {
@@ -126,44 +125,107 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                   );
                 }
               }}
-              onCancel={() => {
-                if (onCancelChange) {
-                  onCancelChange();
+              onCancel={onCancelChange || (() => {})}
+            />
+          </>
+        );
+      }
+      
+      // For seat change and upgrade confirmations
+      if (pendingConfirmation.type === 'CHANGE_SEAT' && 
+          pendingConfirmation.bookingReference) {
+        return (
+          <>
+            <div className="whitespace-pre-wrap mb-3">{content}</div>
+            <SeatChangeConfirmation
+              bookingReference={pendingConfirmation.bookingReference}
+              bookingDetails={pendingConfirmation.bookingDetails}
+              targetClass={(pendingConfirmation.targetClass || 'economy') as 'economy' | 'comfortPlus' | 'first' | 'deltaOne'}
+              seatPreference={(pendingConfirmation.seatPreference || 'aisle') as 'window' | 'aisle' | 'middle' | 'any'}
+              onConfirm={(seatNumber: string, upgradeClass?: string) => {
+                if (onConfirmSeatChange) {
+                  onConfirmSeatChange(
+                    pendingConfirmation.bookingReference as string,
+                    seatNumber,
+                    upgradeClass || ''
+                  );
                 }
               }}
+              onCancel={onCancelSeatChange || (() => console.log('No seat change cancel handler provided'))}
             />
+          </>
+        );
+      }
+    }
+    
+    // If there's an action result, render it
+    if (actionResult) {
+      return (
+        <>
+          <div className="whitespace-pre-wrap mb-3">{content}</div>
+          <ActionResultCard
+            result={actionResult}
+            onConfirmBooking={onConfirmBooking}
+            onCancelBooking={onCancelBooking}
+            onConfirmCancellation={onConfirmCancellation}
+            onCancelCancellation={onCancelCancellation}
+            onConfirmChange={onConfirmChange}
+            onCancelChange={onCancelChange}
+          />
+        </>
+      );
+    }
+    
+    // Default case - just render the message content
+    return <div className="whitespace-pre-wrap">{content}</div>;
+  };
+
+  return (
+    <div 
+      className={`mb-4 flex ${
+        type === 'user' ? 'justify-end' : 'justify-start'
+      }`}
+    >
+      <div 
+        className={`rounded-xl p-4 max-w-[80%] flex flex-col ${
+          type === 'user' 
+            ? 'bg-blue-500 text-white' 
+            : 'bg-white border border-gray-200'
+        }`}
+      >
+        <div className="flex items-center mb-2">
+          <div 
+            className={`p-1 rounded-full mr-2 ${
+              type === 'user' ? 'bg-blue-400' : 'bg-blue-100'
+            }`}
+          >
+            {type === 'user' ? (
+              <User className={`w-4 h-4 ${
+                type === 'user' ? 'text-white' : 'text-blue-500'
+              }`} />
+            ) : (
+              <Bot className="w-4 h-4 text-blue-500" />
+            )}
           </div>
-        )}
-        
-        {/* Display action result if present */}
-        {type === 'bot' && actionResult && (
-          <div className="mt-2">
-            <ActionResultCard 
-              result={actionResult}
-              onConfirmBooking={onConfirmBooking}
-              onCancelBooking={onCancelBooking} 
-              onConfirmCancellation={onConfirmCancellation}
-              onCancelCancellation={onCancelCancellation}
-              onConfirmChange={onConfirmChange}
-              onCancelChange={onCancelChange}
-            />
+          <div 
+            className={`text-xs font-medium ${
+              type === 'user' ? 'text-blue-100' : 'text-gray-500'
+            }`}
+          >
+            {type === 'user' ? 'You' : 'Delta Assistant'}
           </div>
-        )}
-        
-        <div
-          className={`text-xs mt-1 text-gray-500 ${
-            type === 'user' ? 'text-right' : ''
-          }`}
-        >
-          {format(new Date(timestamp), 'h:mm a')}
+          <div 
+            className={`ml-auto flex items-center text-xs ${
+              type === 'user' ? 'text-blue-100' : 'text-gray-400'
+            }`}
+          >
+            <Clock className="w-3 h-3 mr-1" />
+            {formatTime(timestamp)}
+          </div>
         </div>
+        
+        {renderContent()}
       </div>
-      
-      {type === 'user' && (
-        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-          <User size={16} className="text-white" />
-        </div>
-      )}
     </div>
   );
 };

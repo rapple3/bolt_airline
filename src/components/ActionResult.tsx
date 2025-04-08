@@ -3,8 +3,9 @@ import { ActionResult } from '../utils/actionHandler';
 import { Check, X, Plane, CreditCard, Luggage, MapPin, Calendar } from 'lucide-react';
 import { FlightOptions } from './FlightOptions';
 import { dataManager } from '../utils/dataManager';
+import { CancellationConfirmation } from './CancellationConfirmation';
 
-interface ActionResultProps {
+export interface ActionResultProps {
   result: ActionResult;
   onConfirmBooking?: (flightNumber: string, seatClass: string) => void;
   onCancelBooking?: () => void;
@@ -12,7 +13,12 @@ interface ActionResultProps {
   onCancelCancellation?: () => void;
   onConfirmChange?: (bookingReference: string, newFlightNumber: string) => void;
   onCancelChange?: () => void;
+  onConfirmSeatChange?: (bookingReference: string, seatNumber: string, newClass: string) => void;
+  onCancelSeatChange?: () => void;
 }
+
+// Make ActionResultCard a type alias for backward compatibility
+export type ActionResultCard = ActionResultProps;
 
 export const ActionResultCard: React.FC<ActionResultProps> = ({ 
   result,
@@ -21,7 +27,9 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({
   onConfirmCancellation,
   onCancelCancellation,
   onConfirmChange,
-  onCancelChange
+  onCancelChange,
+  onConfirmSeatChange,
+  onCancelSeatChange
 }) => {
   const { success, message, data } = result;
   const [actionComplete, setActionComplete] = useState(false);
@@ -32,7 +40,7 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({
     pendingAction?: {
       type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT';
       flightNumber?: string;
-      seatClass?: 'economy' | 'business' | 'first';
+      seatClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
       bookingReference?: string;
       newFlightNumber?: string;
     };
@@ -57,7 +65,7 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({
   };
 
   // Handle flight selection for booking or changing
-  const handleSelectFlight = (flightNumber: string, seatClass: 'economy' | 'business' | 'first') => {
+  const handleSelectFlight = (flightNumber: string, seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne') => {
     // Determine if this is a booking or flight change action
     const actionType = determineActionType();
     
@@ -100,7 +108,7 @@ export const ActionResultCard: React.FC<ActionResultProps> = ({
     let pendingAction: {
       type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT';
       flightNumber?: string;
-      seatClass?: 'economy' | 'business' | 'first';
+      seatClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
       bookingReference?: string;
       newFlightNumber?: string;
     } | undefined = undefined;
@@ -145,37 +153,48 @@ Would you like me to confirm this flight change?`;
     setActionComplete(true);
   };
   
-  // Handle confirmation of booking directly
+  // Handle confirmation of the action
   const handleConfirmAction = () => {
     if (!actionResult?.pendingAction) return;
     
     const { type, flightNumber, seatClass, bookingReference, newFlightNumber } = actionResult.pendingAction;
     
+    // Mark the action as handled
+    setActionComplete(true);
+    
     if (type === 'BOOK_FLIGHT' && flightNumber && seatClass && onConfirmBooking) {
+      // Call the booking action
       onConfirmBooking(flightNumber, seatClass);
       
-      // Clear the pending action
+      // Update the result
       setActionResult({
-        ...actionResult,
-        pendingAction: undefined
+        success: true,
+        message: `Booking confirmed for flight ${flightNumber}`,
+        details: {
+          flightNumber,
+          seatClass,
+          status: 'confirmed'
+        }
       });
     } 
     else if (type === 'CANCEL_BOOKING' && bookingReference && onConfirmCancellation) {
-      onConfirmCancellation(bookingReference);
-      
-      // Clear the pending action
-      setActionResult({
-        ...actionResult,
-        pendingAction: undefined
-      });
+      // For cancellations, we don't automatically confirm here
+      // Instead, let's show the cancellation confirmation component
+      // Actual confirmation happens through the CancellationConfirmation component
     }
     else if (type === 'CHANGE_FLIGHT' && bookingReference && newFlightNumber && onConfirmChange) {
+      // Call the change action
       onConfirmChange(bookingReference, newFlightNumber);
       
-      // Clear the pending action
+      // Update the result
       setActionResult({
-        ...actionResult,
-        pendingAction: undefined
+        success: true,
+        message: `Flight changed to ${newFlightNumber}`,
+        details: {
+          bookingReference,
+          newFlightNumber,
+          status: 'confirmed'
+        }
       });
     }
   };
@@ -293,6 +312,44 @@ Would you like me to confirm this flight change?`;
             </div>
           )}
           
+          {/* Show the cancellation confirmation dialog */}
+          {actionResult?.pendingAction?.type === 'CANCEL_BOOKING' && 
+           actionResult.pendingAction?.bookingReference && 
+           !actionComplete && (
+            <CancellationConfirmation
+              bookingReference={actionResult.pendingAction.bookingReference}
+              bookingDetails={data}
+              onConfirm={() => {
+                if (onConfirmCancellation && actionResult.pendingAction) {
+                  onConfirmCancellation(actionResult.pendingAction.bookingReference as string);
+                  setActionComplete(true);
+                  setActionResult({
+                    success: true,
+                    message: `Booking ${actionResult.pendingAction.bookingReference} cancelled`,
+                    details: {
+                      bookingReference: actionResult.pendingAction.bookingReference,
+                      status: 'cancelled'
+                    }
+                  });
+                }
+              }}
+              onCancel={() => {
+                if (onCancelCancellation && actionResult.pendingAction) {
+                  onCancelCancellation();
+                  setActionComplete(true);
+                  setActionResult({
+                    success: false,
+                    message: 'Cancellation was not confirmed',
+                    details: {
+                      bookingReference: actionResult.pendingAction.bookingReference,
+                      status: 'active'
+                    }
+                  });
+                }
+              }}
+            />
+          )}
+          
           {/* Show action completion result if action was performed */}
           {actionComplete && actionResult && (
             <div className={`mt-4 p-3 sm:p-4 rounded-lg border ${
@@ -313,7 +370,7 @@ Would you like me to confirm this flight change?`;
               <p className="mt-2 text-sm sm:text-base text-gray-700">{actionResult.message}</p>
               
               {/* Confirmation buttons if there is a pending action */}
-              {actionResult.pendingAction && (
+              {actionResult.pendingAction && actionResult.pendingAction.type !== 'CANCEL_BOOKING' && (
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={handleConfirmAction}

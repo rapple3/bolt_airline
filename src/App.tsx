@@ -9,6 +9,7 @@ import { getChatResponse, resetChatHistory } from './utils/openai';
 import { mockBookings, mockUserProfile } from './data/mockData';
 import { Message, AgentHandoff, UserProfile } from './types';
 import { dataManager } from './utils/dataManager';
+import { SeatChangeConfirmation } from './components/SeatChangeConfirmation';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([{
@@ -88,7 +89,75 @@ function App() {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
+    // Check if this is a PNR response to a cancellation request
+    const previousBotMessage = messages[messages.length - 1];
+    const isPNRResponse = previousBotMessage?.type === 'bot' && 
+      (previousBotMessage.content.includes('booking reference') || 
+       previousBotMessage.content.includes('PNR number')) &&
+      /[A-Z]{2}\d{5}|[A-Z0-9]{6}/i.test(content); // Match PNR format
+    
+    // Check if this is a cancellation request with PNR
+    const isCancellationWithPNR = content.toLowerCase().includes('cancel') && 
+      /[A-Z]{2}\d{5}|[A-Z0-9]{6}/i.test(content);
+
     try {
+      // Handle PNR response with special flow
+      if (isPNRResponse || isCancellationWithPNR) {
+        // Extract the PNR from user message
+        const pnrMatch = content.match(/[A-Z]{2}\d{5}|[A-Z0-9]{6}/i);
+        const bookingReference = pnrMatch ? pnrMatch[0].toUpperCase() : '';
+        
+        if (bookingReference) {
+          // Look up the booking
+          const booking = dataManager.getBookings().find(b => 
+            b.bookingReference.toUpperCase() === bookingReference.toUpperCase()
+          );
+          
+          if (booking) {
+            // Determine refund eligibility
+            const isRefundable = (booking as any).fareType === 'refundable';
+            
+            // Check 24-hour policy
+            const isWithin24Hours = (booking as any).createdAt ? 
+              (new Date().getTime() - new Date((booking as any).createdAt).getTime()) < (24 * 60 * 60 * 1000) : false;
+            
+            // Check if flight is more than 7 days away
+            const flightDate = booking.date ? new Date(booking.date) : null;
+            const isMoreThan7DaysAway = flightDate ? 
+              (flightDate.getTime() - new Date().getTime()) > (7 * 24 * 60 * 60 * 1000) : false;
+            
+            // Check if the 24-hour refund policy applies
+            const qualifiesFor24HourRefund = isWithin24Hours && isMoreThan7DaysAway;
+            
+            let botResponse;
+            
+            if (isRefundable) {
+              botResponse = `I've found your booking ${bookingReference}. Your ticket is fully refundable. Are you sure you want to cancel this Delta booking? This action cannot be undone.`;
+            } else if (qualifiesFor24HourRefund) {
+              botResponse = `I've found your booking ${bookingReference}. Your ticket qualifies for a full refund under our 24-hour cancellation policy. Are you sure you want to cancel this Delta booking? This action cannot be undone.`;
+            } else {
+              botResponse = `I've found your booking ${bookingReference}. Your ticket is non-refundable, but you qualify for an eCredit that can be used for future travel. Would you like to proceed?`;
+            }
+            
+            const botMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              type: 'bot',
+              content: botResponse,
+              timestamp: new Date(),
+              pendingConfirmation: {
+                type: 'CANCEL_BOOKING',
+                bookingReference
+              }
+            };
+            
+            setMessages(prev => [...prev, botMessage]);
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Default flow - use the API for other messages
       const response = await getChatResponse(content);
 
       const botMessage: Message = {
@@ -455,6 +524,94 @@ function App() {
     });
   };
 
+  // Handler for seat change and upgrade confirmation
+  const handleConfirmSeatChange = (bookingReference: string, seatNumber: string, newClass: string) => {
+    // Find the message with the pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'CHANGE_SEAT'
+    );
+    
+    if (!pendingMessage?.pendingConfirmation) {
+      return;
+    }
+    
+    // Execute the seat change action
+    const success = dataManager.changeSeat(bookingReference, seatNumber);
+    
+    if (!success) {
+      // Show error message
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'bot',
+          content: 'Sorry, there was an error changing your seat. Please try again.',
+          timestamp: new Date()
+        }
+      ]);
+      return;
+    }
+    
+    // Add confirmation message
+    const confirmationMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: `Your seat has been changed to ${seatNumber} in ${newClass} class. You'll receive email confirmation 72 hours before departure.`,
+      timestamp: new Date(),
+      actionResult: {
+        success: true,
+        message: `Successfully changed seat to ${seatNumber} in ${newClass} class`,
+        data: {
+          bookingReference,
+          newSeatNumber: seatNumber,
+          class: newClass,
+          status: 'confirmed'
+        }
+      }
+    };
+    
+    // Update messages and remove pending confirmation from the previous message
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat(confirmationMessage);
+    });
+  };
+
+  // Handler for cancelling a seat change
+  const handleCancelSeatChange = () => {
+    // Find the message with the pending confirmation
+    const pendingMessage = messages.find(
+      m => m.type === 'bot' && m.pendingConfirmation?.type === 'CHANGE_SEAT'
+    );
+    
+    if (!pendingMessage) {
+      return;
+    }
+    
+    // Update messages to remove pending confirmation
+    setMessages(prev => {
+      return prev.map(msg => {
+        if (msg.id === pendingMessage.id) {
+          // Remove the pending confirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      }).concat({
+        id: Date.now().toString(),
+        type: 'bot',
+        content: 'Seat change request has been cancelled. Your current seat assignment remains unchanged. Is there anything else I can help you with?',
+        timestamp: new Date()
+      });
+    });
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header with logo and user selector */}
@@ -584,6 +741,9 @@ function App() {
                 onCancelCancellation={handleCancelCancellation}
                 onConfirmChange={handleConfirmChange}
                 onCancelChange={handleCancelChange}
+                onConfirmSeatChange={handleConfirmSeatChange}
+                onCancelSeatChange={handleCancelSeatChange}
+                onHandoffRequest={handleAgentHandoff}
               />
             ))}
             {isLoading && (

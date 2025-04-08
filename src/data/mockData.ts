@@ -213,6 +213,24 @@ const generateBooking = (id: number, customerId: string, flight: FlightData): Bo
     seatClass = 'comfortPlus';
   }
   
+  // Generate a random fare type
+  // 60% basic, 30% main, 10% refundable
+  const fareRandom = Math.random();
+  let fareType: 'basic' | 'main' | 'refundable';
+  if (fareRandom < 0.6) {
+    fareType = 'basic';
+  } else if (fareRandom < 0.9) {
+    fareType = 'main';
+  } else {
+    fareType = 'refundable';
+  }
+  
+  // Generate a creation date for the booking
+  // Between 1-30 days ago
+  const createdAtDate = new Date();
+  const daysAgo = Math.floor(Math.random() * 30) + 1;
+  createdAtDate.setDate(createdAtDate.getDate() - daysAgo);
+  
   const seatInfo = getRandomSeat(flight, seatClass);
   const customer = customers.find(c => c.id === customerId) || customers[0];
   
@@ -226,6 +244,8 @@ const generateBooking = (id: number, customerId: string, flight: FlightData): Bo
     seatInfo,
     checkedIn: Math.random() > 0.8,
     class: seatClass,
+    createdAt: createdAtDate.toISOString(),
+    fareType,
   };
 };
 
