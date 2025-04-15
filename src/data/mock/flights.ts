@@ -63,11 +63,13 @@ const popularRoutes = [
 ];
 
 // Generate seats for a flight
-const generateSeats = (count: number, classType: 'economy' | 'business' | 'first'): SeatInfo[] => {
+const generateSeats = (count: number, classType: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'): SeatInfo[] => {
   const seats: SeatInfo[] = [];
   const rows = Math.ceil(count / 6); // 6 seats per row for simplicity
   
-  const basePrice = classType === 'economy' ? 200 : classType === 'business' ? 800 : 1500;
+  const basePrice = classType === 'economy' ? 200 : 
+                   classType === 'comfortPlus' ? 400 :
+                   classType === 'first' ? 800 : 1200;
   
   for (let row = 1; row <= rows; row++) {
     for (let position = 0; position < 6; position++) {
@@ -84,7 +86,7 @@ const generateSeats = (count: number, classType: 'economy' | 'business' | 'first
       // Determine seat features
       const features: string[] = [];
       if (classType !== 'economy') features.push('Extra Legroom');
-      if (classType === 'first') features.push('Lie-flat Bed', 'Premium Dining');
+      if (classType === 'deltaOne') features.push('Lie-flat Bed', 'Premium Dining');
       if (position === 0 || position === 5) features.push('Window');
       
       // Some seats are already taken
@@ -144,13 +146,16 @@ export const generateFlight = (id: number): FlightData => {
   const flightNumber = `${airline}${100 + id}`;
   
   // Generate seats for each class
-  const economySeats = generateSeats(aircraft.economy, 'economy');
-  const businessSeats = generateSeats(aircraft.business, 'business');
-  const firstSeats = aircraft.first > 0 ? generateSeats(aircraft.first, 'first') : [];
+  const seats = {
+    economy: generateSeats(aircraft.economy, 'economy'),
+    comfortPlus: generateSeats(Math.floor(aircraft.economy * 0.1), 'comfortPlus'),
+    first: generateSeats(Math.floor(aircraft.economy * 0.05), 'first'),
+    deltaOne: generateSeats(Math.floor(aircraft.economy * 0.03), 'deltaOne')
+  };
   
   // Flight status (90% on-time, 8% delayed, 2% cancelled)
   const statusRandom = Math.random();
-  let status: 'on-time' | 'delayed' | 'cancelled' = 'on-time';
+  let status: 'on time' | 'delayed' | 'cancelled';
   let delayReason;
   
   if (statusRandom > 0.98) {
@@ -160,6 +165,8 @@ export const generateFlight = (id: number): FlightData => {
     status = 'delayed';
     const delayReasons = ['Weather conditions', 'Technical check', 'Late arrival of aircraft'];
     delayReason = delayReasons[Math.floor(Math.random() * delayReasons.length)];
+  } else {
+    status = 'on time';
   }
   
   // Generate gate number
@@ -174,92 +181,119 @@ export const generateFlight = (id: number): FlightData => {
     status,
     ...(delayReason && { delayReason }),
     aircraft: aircraft.model,
-    seats: {
-      economy: economySeats,
-      business: businessSeats,
-      first: firstSeats
-    },
+    seats,
     duration,
     gate
   };
 };
 
-// Generate specific flight from Atlanta to New York (for today)
-export const generateAtlantaToNewYorkFlights = (): FlightData[] => {
+// Generate specific flight from Atlanta to New York for a specific date
+export const generateAtlantaToNewYorkFlights = (targetDate?: Date): FlightData[] => {
   const today = new Date();
-  // Generate a set of flights for today
-  return [1, 2, 3, 4].map((id) => {
-    const hours = [8, 11, 14, 18][id - 1]; // Morning, mid-day, afternoon, evening flights
-    const flightTime = new Date(today);
-    flightTime.setHours(hours, [0, 30, 15, 45][id - 1], 0);
+  today.setHours(0, 0, 0, 0); // Reset to start of day
+  
+  // If no date specified, use tomorrow
+  const flightDate = targetDate || new Date(today);
+  if (!targetDate) {
+    flightDate.setDate(flightDate.getDate() + 1);
+  }
+  
+  // Generate a set of flights for the target date
+  return [1, 2, 3, 4, 5].map((id) => {
+    const hours = [7, 10, 13, 16, 19][id - 1]; // Spread throughout the day
+    const minutes = [22, 45, 15, 30, 0][id - 1];
+    const flightTime = new Date(flightDate);
+    flightTime.setHours(hours, minutes, 0);
     
     const aircraft = aircraftTypes[id % aircraftTypes.length];
-    const duration = '2h 15m'; // Typical ATL-JFK flight time
+    const duration = '2h 48m'; // Typical ATL-JFK flight time
     
-    const airlines = ['DL', 'AA', 'UA', 'B6'];
-    const flightNumber = `${airlines[id - 1]}${1000 + id * 111}`;
+    const flightNumber = `WN${6200 + id * 10}`; // WN = Southwest style flight numbers
     
     return {
       flightNumber,
       departure: 'Atlanta',
       arrival: 'New York',
       scheduledTime: flightTime.toISOString(),
-      status: 'on-time',
+      status: 'on time',
       aircraft: aircraft.model,
       seats: {
-        economy: generateSeats(aircraft.economy, 'economy'),
-        business: generateSeats(aircraft.business, 'business'),
-        first: aircraft.first > 0 ? generateSeats(aircraft.first, 'first') : []
+        economy: generateSeats(104, 'economy'),
+        comfortPlus: generateSeats(20, 'comfortPlus'),
+        first: generateSeats(0, 'first'),
+        deltaOne: generateSeats(9, 'deltaOne')
       },
       duration,
-      gate: `${['A', 'B', 'C', 'D'][id - 1]}${id + 10}`
+      gate: `B${id + 10}`
     };
   });
 };
 
-// Generate flights from New York to Atlanta for a future date
-export const generateNewYorkToAtlantaFlights = (futureDate: Date): FlightData[] => {
-  return [1, 2, 3].map((id) => {
-    const hours = [7, 12, 17][id - 1]; // Morning, mid-day, evening flights
-    const flightTime = new Date(futureDate);
-    flightTime.setHours(hours, [20, 0, 30][id - 1], 0);
+// Generate New York to Atlanta flights for a specific date
+export const generateNewYorkToAtlantaFlights = (targetDate?: Date): FlightData[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to start of day
+  
+  // If no date specified, use tomorrow
+  const flightDate = targetDate || new Date(today);
+  if (!targetDate) {
+    flightDate.setDate(flightDate.getDate() + 1);
+  }
+  
+  // Generate a set of flights for the target date
+  return [1, 2, 3, 4, 5].map((id) => {
+    const hours = [6, 9, 12, 15, 18][id - 1]; // Spread throughout the day
+    const minutes = [30, 15, 45, 0, 30][id - 1];
+    const flightTime = new Date(flightDate);
+    flightTime.setHours(hours, minutes, 0);
     
-    const aircraft = aircraftTypes[(id + 1) % aircraftTypes.length];
-    const duration = '2h 30m'; // Typical JFK-ATL flight time
+    const aircraft = aircraftTypes[id % aircraftTypes.length];
+    const duration = '2h 35m'; // Typical JFK-ATL flight time
     
-    const airlines = ['DL', 'AA', 'UA'];
-    const flightNumber = `${airlines[id - 1]}${2000 + id * 111}`;
+    const flightNumber = `WN${6300 + id * 10}`; // WN = Southwest style flight numbers
     
     return {
       flightNumber,
       departure: 'New York',
       arrival: 'Atlanta',
       scheduledTime: flightTime.toISOString(),
-      status: 'on-time',
+      status: 'on time',
       aircraft: aircraft.model,
       seats: {
-        economy: generateSeats(aircraft.economy, 'economy'),
-        business: generateSeats(aircraft.business, 'business'),
-        first: aircraft.first > 0 ? generateSeats(aircraft.first, 'first') : []
+        economy: generateSeats(104, 'economy'),
+        comfortPlus: generateSeats(20, 'comfortPlus'),
+        first: generateSeats(0, 'first'),
+        deltaOne: generateSeats(9, 'deltaOne')
       },
       duration,
-      gate: `${['E', 'F', 'G'][id - 1]}${id + 5}`
+      gate: `A${id + 10}`
     };
   });
 };
 
-// Generate multiple flights
-export const generateFlights = (count: number): FlightData[] => {
-  // Start with guaranteed ATL-JFK and JFK-ATL routes
-  const specialFlights = [
-    ...generateAtlantaToNewYorkFlights(),
-    ...generateNewYorkToAtlantaFlights(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 1 week from now
-  ];
+// Generate a batch of random flights
+export const generateFlights = (count: number, targetDate?: Date): FlightData[] => {
+  const flights: FlightData[] = [];
   
-  // Then add random flights to reach the desired count
-  const randomFlights = Array.from({ length: Math.max(0, count - specialFlights.length) }, (_, i) => 
-    generateFlight(i + 1)
-  );
+  // Add specific route flights first
+  flights.push(...generateAtlantaToNewYorkFlights(targetDate));
+  flights.push(...generateNewYorkToAtlantaFlights(targetDate));
   
-  return [...specialFlights, ...randomFlights];
+  // Generate remaining random flights
+  for (let i = flights.length; i < count; i++) {
+    const flight = generateFlight(i);
+    
+    // If target date specified, adjust the flight time to that date but keep the hour/minute
+    if (targetDate) {
+      const currentFlightTime = new Date(flight.scheduledTime);
+      const adjustedFlightTime = new Date(targetDate);
+      adjustedFlightTime.setHours(currentFlightTime.getHours());
+      adjustedFlightTime.setMinutes(currentFlightTime.getMinutes());
+      flight.scheduledTime = adjustedFlightTime.toISOString();
+    }
+    
+    flights.push(flight);
+  }
+  
+  return flights;
 }; 

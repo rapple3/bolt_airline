@@ -368,6 +368,23 @@ class DataManager {
     this.saveToStorage();
     this.notifySubscribers();
   }
+
+  // Refresh flights for a specific date
+  refreshFlightsForDate(date: Date): void {
+    // Generate new flights for the specified date
+    const newFlights = generateFlights(20, date);
+    
+    // Keep existing bookings' flights
+    const bookedFlightNumbers = new Set(this.bookings.map(b => b.flightNumber));
+    const existingBookedFlights = this.flights.filter(f => bookedFlightNumbers.has(f.flightNumber));
+    
+    // Combine booked flights with new flights
+    this.flights = [...existingBookedFlights, ...newFlights];
+    
+    // Save changes and notify UI
+    this.saveToStorage();
+    this.notifySubscribers();
+  }
 }
 
 // Create a singleton instance

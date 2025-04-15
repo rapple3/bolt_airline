@@ -147,7 +147,7 @@ export default async function handler(req, res) {
     
     // Call OpenAI API
     const completion = await openaiClient.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       messages,
       temperature: 0.7,
     });
