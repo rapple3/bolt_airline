@@ -187,9 +187,6 @@ User: "My PNR is ABC123."
 Assistant: "Let me check your ticket type... Your non-refundable ticket qualifies for an eCredit. Would you like to proceed?"
 
 User: "Yes, proceed."
-Assistant: "Are you sure you want to cancel this Delta booking? This action cannot be undone."
-
-User: "Yes."
 Assistant: "[ACTION:CANCEL_BOOKING]bookingReference="ABC123"[/ACTION]
 Your eCredit for $[amount] has been issued. Check your email for confirmation. Is there anything else I can help you with today?"
 
@@ -456,141 +453,134 @@ function determineRequiredInfo(intent: string, currentContext: ConversationConte
 
 // Helper function to update conversation context with new information
 function updateContextWithUserInfo(userMessage: string, context: ConversationContext) {
-  const lowercaseMessage = userMessage.toLowerCase();
+  const messageLower = userMessage.toLowerCase();
   
-  // Try to extract departure city
-  const fromCityMatch = lowercaseMessage.match(/from\s+([a-z\s]+?)(?=\s+to|\s*$)/i);
-  if (fromCityMatch) {
-    context.requiredInfo.travelDetails = {
-      ...context.requiredInfo.travelDetails,
-      departureCity: fromCityMatch[1].trim()
-    };
+  // Update travel details
+  if (!context.requiredInfo.travelDetails) {
+    context.requiredInfo.travelDetails = {};
   }
-
-  // Try to extract destination city
-  const toCityMatch = lowercaseMessage.match(/to\s+([a-z\s]+)(?=\s+on|\s*$)/i);
-  if (toCityMatch) {
-    context.requiredInfo.travelDetails = {
-      ...context.requiredInfo.travelDetails,
-      destinationCity: toCityMatch[1].trim()
-    };
+  
+  // Handle date responses
+  if (context.requiredInfo.currentQuestion?.includes("When would you like to travel?")) {
+    if (messageLower === 'today' || messageLower === 'tomorrow' || /next \w+/.test(messageLower)) {
+      context.requiredInfo.travelDetails.departureDate = messageLower;
+      // Remove the current question since it's been answered
+      context.requiredInfo.currentQuestion = undefined;
+      return true;
+    }
+    
+    // Try to parse as a date
+    const dateMatch = userMessage.match(/\d{4}-\d{2}-\d{2}/) || 
+                     userMessage.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
+    if (dateMatch) {
+      context.requiredInfo.travelDetails.departureDate = dateMatch[0];
+      context.requiredInfo.currentQuestion = undefined;
+      return true;
+    }
   }
-
-  // Try to extract passenger count
-  if (lowercaseMessage.includes('triplet')) {
-    context.requiredInfo.travelDetails = {
-      ...context.requiredInfo.travelDetails,
-      numPassengers: 4  // Parent + 3 triplets
-    };
+  
+  // Handle city responses
+  const cityMatch = userMessage.match(/from\s+([A-Za-z\s]+)/i);
+  if (cityMatch) {
+    context.requiredInfo.travelDetails.departureCity = cityMatch[1].trim();
   }
+  
+  const toMatch = userMessage.match(/to\s+([A-Za-z\s]+)/i);
+  if (toMatch) {
+    context.requiredInfo.travelDetails.destinationCity = toMatch[1].trim();
+  }
+  
+  // Handle passenger count
+  const passengerMatch = userMessage.match(/(\d+)\s+passengers?/i);
+  if (passengerMatch) {
+    context.requiredInfo.travelDetails.numPassengers = parseInt(passengerMatch[1]);
+  }
+  
+  return false;
+}
 
-  // Update pending questions based on new information
-  context.requiredInfo.pendingQuestions = determineRequiredInfo('book_flight', context);
+// Function to check if we have enough info to search flights
+function canSearchFlights(context: ConversationContext): boolean {
+  const { travelDetails } = context.requiredInfo;
+  return !!(travelDetails?.departureCity && 
+            travelDetails?.destinationCity && 
+            travelDetails?.departureDate);
 }
 
 export const getChatResponse = async (userMessage: string): Promise<{
   content: string;
   requiresHandoff: boolean;
   actionResult?: any;
-  pendingConfirmation?: {
-    type: 'BOOK_FLIGHT' | 'CANCEL_BOOKING' | 'CHANGE_FLIGHT' | 'CHANGE_SEAT';
-    flightNumber?: string;
-    seatClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
-    flightDetails?: FlightData;
-    bookingReference?: string;
-    newFlightNumber?: string;
-    newFlightDetails?: FlightData;
-    bookingDetails?: BookingData;
-    seatPreference?: 'window' | 'aisle' | 'middle';
-    targetClass?: string;
-  };
 }> => {
   try {
     // Update context with any information from the user's message
-    updateContextWithUserInfo(userMessage, conversationContext);
-
+    const contextUpdated = updateContextWithUserInfo(userMessage, conversationContext);
+    
+    // If we have all required info for a flight search, do it
+    if (canSearchFlights(conversationContext)) {
+      const { travelDetails } = conversationContext.requiredInfo;
+      
+      // We can safely assert these exist because canSearchFlights() verified them
+      const departureCity = travelDetails!.departureCity!;
+      const destinationCity = travelDetails!.destinationCity!;
+      const departureDate = travelDetails!.departureDate!;
+      
+      // Execute flight search
+      const searchResult = await executeAction('SEARCH_FLIGHTS', {
+        from: departureCity,
+        to: destinationCity,
+        date: departureDate
+      });
+      
+      if (searchResult.success) {
+        conversationContext.lastSearchResults = searchResult.data;
+        return {
+          content: `I've found several flights from ${departureCity} to ${destinationCity} for ${departureDate}. Here are your options. Would you like me to help you book any of these flights?`,
+          requiresHandoff: false,
+          actionResult: searchResult
+        };
+      }
+    }
+    
     // If we have pending questions, prioritize asking them
     if (conversationContext.requiredInfo.pendingQuestions.length > 0) {
-      // Get the next question
       const nextQuestion = conversationContext.requiredInfo.pendingQuestions[0];
       conversationContext.requiredInfo.currentQuestion = nextQuestion;
-      
-      // Remove it from the pending questions
       conversationContext.requiredInfo.pendingQuestions.shift();
       
-      // Format a friendly response that:
-      // 1. Acknowledges the information we got (if any)
-      // 2. Asks the next question
       let response = "";
       
       // Acknowledge information we've gathered
       const { travelDetails } = conversationContext.requiredInfo;
       if (travelDetails) {
-        if (travelDetails.numPassengers) {
-          response += `I understand you'll be traveling with ${travelDetails.numPassengers - 1} children. `;
-        }
         if (travelDetails.departureCity) {
           response += `You'll be departing from ${travelDetails.departureCity}. `;
         }
         if (travelDetails.destinationCity) {
           response += `Your destination is ${travelDetails.destinationCity}. `;
         }
-      }
-      
-      // Add the next question
-      response += nextQuestion;
-      
-      // If this is about family travel, add some helpful context
-      if (travelDetails?.numPassengers && travelDetails.numPassengers > 1) {
-        if (nextQuestion.includes("special assistance")) {
-          response += " Delta offers several family-friendly services including:";
-          response += "\n- Priority boarding for families with young children";
-          response += "\n- Stroller and car seat check-in";
-          response += "\n- Family seating arrangements";
-          response += "\n- Kid-friendly meal options";
+        if (travelDetails.departureDate) {
+          response += `You want to travel ${travelDetails.departureDate}. `;
         }
       }
-
+      
+      response += nextQuestion;
       return {
         content: response,
         requiresHandoff: false
       };
     }
 
-    // If we have all required information, proceed with normal processing
-    const intent = analyzeIntent(userMessage);
-    const contextData = {
-      flights: conversationContext.lastSearchResults || [],
-      selectedFlight: conversationContext.selectedFlight,
-      recentlyMentionedFlights: Array.from(conversationContext.recentlyMentionedFlights.values()),
-      recentlyMentionedBookings: Array.from(conversationContext.recentlyMentionedBookings.values()),
-      userProfile: dataManager.getUserProfile(),
-      travelDetails: conversationContext.requiredInfo.travelDetails,
-      preferences: conversationContext.requiredInfo.preferences
-    };
-
-    // Add message to history
+    // Get response from API for other cases
+    const contextData = getRelevantData(userMessage);
     messageHistory.push({ role: 'user', content: userMessage });
-
-    // Get response from API
+    
     const apiResponse = await callApiWithFallback(userMessage, contextData, messageHistory);
-    
-    // Parse the API response and extract action if present
-    const { actionType, params } = parseAction(apiResponse.data.content);
-    
-    // Execute action if present
-    let actionResult;
-    if (actionType && params) {
-      actionResult = await executeAction(actionType, params);
-    }
-    
-    // Update message history with assistant's response
     messageHistory.push({ role: 'assistant', content: apiResponse.data.content });
-
+    
     return {
       content: apiResponse.data.content,
-      requiresHandoff: false,
-      actionResult
+      requiresHandoff: false
     };
   } catch (error) {
     console.error('Error in getChatResponse:', error);
