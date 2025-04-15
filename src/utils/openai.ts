@@ -39,6 +39,8 @@ interface ConversationContext {
     currentQuestion?: string; // Track the current question being asked
     pendingQuestions: string[]; // Queue of questions to ask
   };
+  pendingQuestions?: string[];
+  currentQuestion?: string;
 }
 
 // Initialize the conversation context
@@ -74,7 +76,7 @@ You can perform the following actions to help users:
 1. Search for flights: [ACTION:SEARCH_FLIGHTS]from="New York" to="London" date="2023-12-25"[/ACTION]
 2. Book a flight: [ACTION:BOOK_FLIGHT]flightNumber="DL123" seatClass="economy"[/ACTION]
 3. Cancel a booking: [ACTION:CANCEL_BOOKING]bookingReference="DL12345"[/ACTION]
-4. Change flight: [ACTION:CHANGE_FLIGHT]bookingReference="DL12345" newFlightNumber="DL456"[/ACTION]
+4. Change a flight: [ACTION:CHANGE_FLIGHT]bookingReference="DL12345" newFlightNumber="DL456"[/ACTION]
 5. Change seat: [ACTION:CHANGE_SEAT]bookingReference="DL12345" seatPreference="aisle" targetClass="comfortPlus"[/ACTION]
 6. Check-in: [ACTION:CHECK_IN]bookingReference="DL12345"[/ACTION]
 7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="DL12345"[/ACTION]
@@ -516,6 +518,25 @@ export const getChatResponse = async (userMessage: string): Promise<{
     // Update context with any information from the user's message
     const contextUpdated = updateContextWithUserInfo(userMessage, conversationContext);
     
+    // Check if we have pending questions to ask
+    if (conversationContext.requiredInfo?.pendingQuestions?.length > 0) {
+      const nextQuestion = conversationContext.requiredInfo.pendingQuestions[0];
+      conversationContext.requiredInfo.currentQuestion = nextQuestion;
+      conversationContext.requiredInfo.pendingQuestions = conversationContext.requiredInfo.pendingQuestions.slice(1);
+      
+      // Format acknowledgment of any info we got
+      let acknowledgment = '';
+      const { travelDetails } = conversationContext.requiredInfo;
+      if (travelDetails?.departureCity && travelDetails?.destinationCity) {
+        acknowledgment = `I see you're interested in traveling from ${travelDetails.departureCity} to ${travelDetails.destinationCity}. `;
+      }
+      
+      return {
+        content: `${acknowledgment}${nextQuestion}`,
+        requiresHandoff: false
+      };
+    }
+    
     // If we have all required info for a flight search, do it
     if (canSearchFlights(conversationContext)) {
       const { travelDetails } = conversationContext.requiredInfo;
@@ -532,56 +553,100 @@ export const getChatResponse = async (userMessage: string): Promise<{
         date: departureDate
       });
       
-      if (searchResult.success) {
+      if (searchResult.success && searchResult.data) {
         conversationContext.lastSearchResults = searchResult.data;
+        
+        // Format flight options in a more detailed way
+        let flightOptions = '';
+        if (Array.isArray(searchResult.data)) {
+          flightOptions = searchResult.data.map((flight: any, index: number) => {
+            const departTime = new Date(flight.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const duration = flight.duration;
+            const airline = flight.airline;
+            
+            // Calculate price ranges
+            const economyPrices = flight.seats.economy.map((s: any) => s.price);
+            const minPrice = Math.min(...economyPrices);
+            const maxPrice = Math.max(...flight.seats.deltaOne?.length ? 
+              flight.seats.deltaOne.map((s: any) => s.price) : 
+              flight.seats.first.map((s: any) => s.price));
+            
+            return `\nOption ${index + 1}: ${airline} Flight ${flight.flightNumber}
+• Departure: ${departTime} from Terminal ${flight.terminal}
+• Duration: ${duration}
+• Aircraft: ${flight.aircraft}
+• Prices: $${minPrice} - $${maxPrice}
+• Available Classes: ${Object.keys(flight.seats).filter(c => flight.seats[c].length > 0).join(', ')}`;
+          }).join('\n');
+        }
+        
+        // Check if we need to ask about preferences
+        if (!conversationContext.requiredInfo.preferences?.cabinClass) {
+          conversationContext.requiredInfo.pendingQuestions = [
+            "Which cabin class would you prefer? We have options for economy, comfort+, first class, and on some flights, Delta One."
+          ];
+        }
+        
+        const response = `I've found several flights from ${departureCity} to ${destinationCity} for ${departureDate}:${flightOptions}\n\n`;
+        
+        // If we have pending questions, ask the first one
+        if (conversationContext.requiredInfo?.pendingQuestions?.length > 0) {
+          const nextQuestion = conversationContext.requiredInfo.pendingQuestions[0];
+          conversationContext.requiredInfo.pendingQuestions = conversationContext.requiredInfo.pendingQuestions.slice(1);
+          conversationContext.requiredInfo.currentQuestion = nextQuestion;
+          return {
+            content: response + nextQuestion,
+            requiresHandoff: false,
+            actionResult: searchResult
+          };
+        }
+        
         return {
-          content: `I've found several flights from ${departureCity} to ${destinationCity} for ${departureDate}. Here are your options. Would you like me to help you book any of these flights?`,
+          content: response + "Would you like me to help you book any of these flights?",
+          requiresHandoff: false,
+          actionResult: searchResult
+        };
+      } else {
+        // Reset the search parameters so user can try again
+        conversationContext.requiredInfo.travelDetails = {
+          ...conversationContext.requiredInfo.travelDetails,
+          departureDate: undefined
+        };
+        
+        return {
+          content: `I apologize, but I couldn't find any flights from ${departureCity} to ${destinationCity} for ${departureDate}. Would you like to try a different date? I can help you find available options.`,
           requiresHandoff: false,
           actionResult: searchResult
         };
       }
     }
     
-    // If we have pending questions, prioritize asking them
-    if (conversationContext.requiredInfo.pendingQuestions.length > 0) {
-      const nextQuestion = conversationContext.requiredInfo.pendingQuestions[0];
-      conversationContext.requiredInfo.currentQuestion = nextQuestion;
-      conversationContext.requiredInfo.pendingQuestions.shift();
-      
-      let response = "";
-      
-      // Acknowledge information we've gathered
-      const { travelDetails } = conversationContext.requiredInfo;
-      if (travelDetails) {
-        if (travelDetails.departureCity) {
-          response += `You'll be departing from ${travelDetails.departureCity}. `;
-        }
-        if (travelDetails.destinationCity) {
-          response += `Your destination is ${travelDetails.destinationCity}. `;
-        }
-        if (travelDetails.departureDate) {
-          response += `You want to travel ${travelDetails.departureDate}. `;
-        }
-      }
-      
-      response += nextQuestion;
-      return {
-        content: response,
-        requiresHandoff: false
-      };
-    }
-
-    // Get response from API for other cases
+    // Get response from API and check for actions
     const contextData = getRelevantData(userMessage);
     messageHistory.push({ role: 'user', content: userMessage });
     
     const apiResponse = await callApiWithFallback(userMessage, contextData, messageHistory);
-    messageHistory.push({ role: 'assistant', content: apiResponse.data.content });
+    const parsedResponse = parseAction(apiResponse.data.content);
     
+    // If we found an action, execute it
+    if (parsedResponse.actionType && parsedResponse.params) {
+      const actionResult = await executeAction(parsedResponse.actionType, parsedResponse.params);
+      messageHistory.push({ role: 'assistant', content: parsedResponse.content });
+      
+      return {
+        content: parsedResponse.content,
+        requiresHandoff: false,
+        actionResult
+      };
+    }
+    
+    // Handle regular responses
+    messageHistory.push({ role: 'assistant', content: apiResponse.data.content });
     return {
       content: apiResponse.data.content,
       requiresHandoff: false
     };
+    
   } catch (error) {
     console.error('Error in getChatResponse:', error);
     return {
