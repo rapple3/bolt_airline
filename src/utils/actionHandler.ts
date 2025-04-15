@@ -1,4 +1,6 @@
 import { dataManager } from './dataManager';
+import { generateAtlantaToNewYorkFlights, generateNewYorkToAtlantaFlights } from '../data/mock/flights';
+import { FlightData } from '../types';
 
 // Types for our action system
 export type ActionType = 
@@ -123,6 +125,43 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
   }
   
   try {
+    // Parse the search date first
+    let searchDate: Date | null = null;
+    const dateLower = date?.toLowerCase() || '';
+    const currentDate = dataManager.getCurrentDate();
+    
+    if (dateLower === 'today') {
+      searchDate = new Date(currentDate);
+    } else if (dateLower === 'tomorrow') {
+      searchDate = new Date(currentDate);
+      searchDate.setDate(searchDate.getDate() + 1);
+    } else if (dateLower.includes('next')) {
+      // Handle "next tuesday", etc.
+      const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      for (let i = 0; i < days.length; i++) {
+        if (dateLower.includes(days[i])) {
+          searchDate = new Date(currentDate);
+          const dayOfWeek = i;
+          const currentDay = searchDate.getDay();
+          let daysToAdd = dayOfWeek - currentDay;
+          if (daysToAdd <= 0) daysToAdd += 7; // Next week if today or past day this week
+          searchDate.setDate(searchDate.getDate() + daysToAdd);
+          break;
+        }
+      }
+    } else if (date) {
+      // Try standard date format
+      searchDate = new Date(date);
+      if (isNaN(searchDate.getTime())) {
+        searchDate = null;
+      }
+    }
+
+    // If we have a valid search date, refresh flights for that date
+    if (searchDate) {
+      dataManager.refreshFlightsForDate(searchDate);
+    }
+    
     // Get all available flights
     const allFlights = dataManager.getFlights();
     
@@ -134,59 +173,34 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
     let filteredFlights = allFlights.filter(flight => {
       const departureMatch = flight.departure.toLowerCase().includes(fromLower);
       const arrivalMatch = flight.arrival.toLowerCase().includes(toLower);
-      
       const matchesRoute = departureMatch && arrivalMatch;
       
-      if (!date) {
+      if (!searchDate) {
         return matchesRoute;
       }
       
-      // Enhanced date parsing
+      // Compare only the date portion
       const flightDate = new Date(flight.scheduledTime);
-      let parsedDate: Date | null = null;
-      
-      // Handle special date terms
-      const dateLower = date.toLowerCase();
-      if (dateLower === 'today') {
-        parsedDate = new Date();
-      } else if (dateLower === 'tomorrow') {
-        parsedDate = new Date();
-        parsedDate.setDate(parsedDate.getDate() + 1);
-      } else if (dateLower.includes('next')) {
-        // Handle "next tuesday", etc.
-        const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-        for (let i = 0; i < days.length; i++) {
-          if (dateLower.includes(days[i])) {
-            const today = new Date();
-            const dayOfWeek = i;
-            const currentDay = today.getDay();
-            let daysToAdd = dayOfWeek - currentDay;
-            if (daysToAdd <= 0) daysToAdd += 7; // Next week if today or past day this week
-            parsedDate = new Date();
-            parsedDate.setDate(parsedDate.getDate() + daysToAdd);
-            break;
-          }
-        }
-      } else {
-        // Try standard date format
-        parsedDate = new Date(date);
-        // If invalid, don't filter by date
-        if (isNaN(parsedDate.getTime())) {
-          return matchesRoute;
-        }
-      }
-      
-      // If we successfully parsed a date, compare only the date portion
-      if (parsedDate) {
-        return matchesRoute && 
-               flightDate.getFullYear() === parsedDate.getFullYear() &&
-               flightDate.getMonth() === parsedDate.getMonth() &&
-               flightDate.getDate() === parsedDate.getDate();
-      }
-      
-      // Default to matching route only
-      return matchesRoute;
+      return matchesRoute && 
+             flightDate.getFullYear() === searchDate.getFullYear() &&
+             flightDate.getMonth() === searchDate.getMonth() &&
+             flightDate.getDate() === searchDate.getDate();
     });
+    
+    // If no flights found, try to generate specific route flights
+    if (filteredFlights.length === 0 && searchDate) {
+      let newFlights: FlightData[] = [];
+      // Generate route-specific flights
+      if (fromLower.includes('atlanta') && toLower.includes('new york')) {
+        newFlights = generateAtlantaToNewYorkFlights(searchDate);
+      } else if (fromLower.includes('new york') && toLower.includes('atlanta')) {
+        newFlights = generateNewYorkToAtlantaFlights(searchDate);
+      }
+      if (newFlights.length > 0) {
+        dataManager.setFlights([...allFlights, ...newFlights]);
+        filteredFlights = newFlights;
+      }
+    }
     
     // If no flights found, generate some flights for this route
     if (filteredFlights.length === 0) {

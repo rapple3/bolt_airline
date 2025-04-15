@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plane, RotateCcw, Search, MapPin, Menu, X, User, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plane, RotateCcw, Search, MapPin, Menu, X, User, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
 import UserProfileCard from './components/UserProfileCard';
@@ -24,11 +24,13 @@ function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile>(dataManager.getUserProfile());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [testMenuOpen, setTestMenuOpen] = useState(false);
+  const [currentSystemDate, setCurrentSystemDate] = useState<Date>(dataManager.getCurrentDate());
 
   useEffect(() => {
     // Subscribe to user profile changes
     const unsubscribe = dataManager.subscribe(() => {
       setCurrentUser(dataManager.getUserProfile());
+      setCurrentSystemDate(dataManager.getCurrentDate());
     });
 
     return () => unsubscribe();
@@ -717,6 +719,16 @@ function App() {
               
               {testMenuOpen && (
                 <div className="mt-2 space-y-2 pl-2">
+                  <div className="flex items-center w-full py-2 px-3 text-sm bg-gray-50 rounded-md text-gray-700">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    <span>Current Date: {currentSystemDate.toLocaleDateString('en-US', { 
+                      weekday: 'short',
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}</span>
+                  </div>
+
                   <button
                     onClick={handleResetData}
                     className="flex items-center w-full py-2 px-3 text-sm hover:bg-gray-100 rounded-md text-gray-700 transition-colors"

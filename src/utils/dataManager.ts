@@ -11,8 +11,24 @@ class DataManager {
   private userProfile: UserProfile = { ...mockUserProfile };
   private subscribers: Subscriber[] = [];
   private lastFlightUpdate: string = '';
+  private currentDate: Date;
 
   constructor() {
+    // Initialize current date from storage temporarily
+    const storedDate = this.loadFromStorage<string>('currentDate');
+    this.currentDate = storedDate ? new Date(storedDate) : new Date();
+    
+    // Fetch current date from internet
+    this.fetchCurrentDateFromAPI().then(date => {
+      if (date) {
+        this.currentDate = date;
+        this.saveToStorage();
+        this.notifySubscribers();
+      }
+    }).catch(error => {
+      console.error('Error fetching current date:', error);
+    });
+    
     this.lastFlightUpdate = this.loadFromStorage('lastFlightUpdate') || '';
     
     // Check if we need to refresh flights on initial load
@@ -31,8 +47,38 @@ class DataManager {
     this.saveToStorage();
   }
 
+  // Add method to fetch current date from WorldTimeAPI
+  private async fetchCurrentDateFromAPI(): Promise<Date | null> {
+    try {
+      const response = await fetch('https://worldtimeapi.org/api/timezone/America/New_York');
+      if (!response.ok) {
+        throw new Error('Failed to fetch time from API');
+      }
+      const data = await response.json();
+      // Add 2 years to the current date to make it 2025
+      const date = new Date(data.datetime);
+      date.setFullYear(date.getFullYear());
+      return date;
+    } catch (error) {
+      console.error('Error fetching current date from API:', error);
+      return null;
+    }
+  }
+
+  // Add getter for current date
+  getCurrentDate(): Date {
+    return new Date(this.currentDate);
+  }
+
+  // Add method to set current date
+  setCurrentDate(date: Date): void {
+    this.currentDate = new Date(date);
+    localStorage.setItem('airline_app_currentDate', this.currentDate.toISOString());
+    this.notifySubscribers();
+  }
+
   private shouldRefreshFlights(): boolean {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.currentDate.toISOString().split('T')[0];
     return this.lastFlightUpdate !== today;
   }
 
@@ -40,7 +86,7 @@ class DataManager {
     console.log('Refreshing flights for new day...');
     const generatedFlights = generateFlights(20);
     this.flights = generatedFlights;
-    this.lastFlightUpdate = new Date().toISOString().split('T')[0];
+    this.lastFlightUpdate = this.currentDate.toISOString().split('T')[0];
     localStorage.setItem('airline_app_lastFlightUpdate', this.lastFlightUpdate);
     this.saveToStorage();
     this.notifySubscribers();
@@ -63,6 +109,7 @@ class DataManager {
       localStorage.setItem('airline_app_bookings', JSON.stringify(this.bookings));
       localStorage.setItem('airline_app_userProfile', JSON.stringify(this.userProfile));
       localStorage.setItem('airline_app_lastFlightUpdate', this.lastFlightUpdate);
+      localStorage.setItem('airline_app_currentDate', this.currentDate.toISOString());
     } catch (e) {
       console.error('Error saving to storage:', e);
     }
