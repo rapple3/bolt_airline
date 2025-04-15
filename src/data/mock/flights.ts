@@ -62,14 +62,69 @@ const popularRoutes = [
   { from: 'Atlanta', to: 'Chicago' }
 ];
 
+// Base prices for different routes (in USD)
+const routePrices = {
+  domestic: {
+    base: 200,
+    economy: { min: 150, max: 400 },
+    comfortPlus: { min: 300, max: 600 },
+    first: { min: 600, max: 1200 },
+    deltaOne: { min: 800, max: 1500 }
+  },
+  international: {
+    base: 500,
+    economy: { min: 400, max: 1200 },
+    comfortPlus: { min: 800, max: 1800 },
+    first: { min: 1500, max: 3000 },
+    deltaOne: { min: 2000, max: 4000 }
+  }
+};
+
+// Helper to determine if a route is international
+const isInternationalRoute = (departure: string, arrival: string): boolean => {
+  const usAirports = ['New York', 'Los Angeles', 'Chicago', 'Atlanta'];
+  const isDepartureUS = usAirports.includes(departure);
+  const isArrivalUS = usAirports.includes(arrival);
+  return isDepartureUS !== isArrivalUS;
+};
+
+// Calculate price based on various factors
+const calculatePrice = (basePrice: number, classType: string, departureDate: Date): number => {
+  const today = new Date();
+  const daysUntilFlight = Math.ceil((departureDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Demand multiplier based on days until flight
+  let demandMultiplier = 1;
+  if (daysUntilFlight <= 3) {
+    demandMultiplier = 1.5; // Last minute premium
+  } else if (daysUntilFlight <= 7) {
+    demandMultiplier = 1.3;
+  } else if (daysUntilFlight <= 14) {
+    demandMultiplier = 1.1;
+  }
+  
+  // Weekend multiplier (Friday, Saturday, Sunday flights)
+  const isWeekend = [5, 6, 0].includes(departureDate.getDay());
+  const weekendMultiplier = isWeekend ? 1.2 : 1;
+  
+  // Season multiplier (summer and holidays)
+  const month = departureDate.getMonth();
+  const isHighSeason = (month >= 5 && month <= 7) || month === 11; // June-August or December
+  const seasonMultiplier = isHighSeason ? 1.25 : 1;
+  
+  return Math.round(basePrice * demandMultiplier * weekendMultiplier * seasonMultiplier);
+};
+
 // Generate seats for a flight
-const generateSeats = (count: number, classType: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'): SeatInfo[] => {
+const generateSeats = (count: number, classType: 'economy' | 'comfortPlus' | 'first' | 'deltaOne', isInternational: boolean, departureDate: Date): SeatInfo[] => {
   const seats: SeatInfo[] = [];
   const rows = Math.ceil(count / 6); // 6 seats per row for simplicity
   
-  const basePrice = classType === 'economy' ? 200 : 
-                   classType === 'comfortPlus' ? 400 :
-                   classType === 'first' ? 800 : 1200;
+  const priceRange = isInternational ? 
+    routePrices.international[classType] : 
+    routePrices.domestic[classType];
+  
+  const basePrice = (priceRange.min + priceRange.max) / 2;
   
   for (let row = 1; row <= rows; row++) {
     for (let position = 0; position < 6; position++) {
@@ -79,15 +134,15 @@ const generateSeats = (count: number, classType: 'economy' | 'comfortPlus' | 'fi
       const seatLetter = positionLetters[position];
       const seatNumber = `${row}${seatLetter}`;
       
-      // Calculate price with some variation
-      const priceVariation = Math.random() * 0.3 + 0.85; // 0.85 to 1.15 multiplier
-      const price = Math.round(basePrice * priceVariation);
+      // Calculate price with variations
+      const price = calculatePrice(basePrice, classType, departureDate);
       
       // Determine seat features
       const features: string[] = [];
       if (classType !== 'economy') features.push('Extra Legroom');
       if (classType === 'deltaOne') features.push('Lie-flat Bed', 'Premium Dining');
       if (position === 0 || position === 5) features.push('Window');
+      if (position === 2 || position === 3) features.push('Aisle');
       
       // Some seats are already taken
       const status: 'available' | 'occupied' = Math.random() > 0.3 ? 'available' : 'occupied';
@@ -106,7 +161,7 @@ const generateSeats = (count: number, classType: 'economy' | 'comfortPlus' | 'fi
 };
 
 // Generate a single flight
-export const generateFlight = (id: number): FlightData => {
+export const generateFlight = (id: number, targetDate?: Date): FlightData => {
   let departure, arrival;
   
   // 70% chance of using a popular route
@@ -120,7 +175,7 @@ export const generateFlight = (id: number): FlightData => {
     let arrivalIndex;
     do {
       arrivalIndex = Math.floor(Math.random() * airports.length);
-    } while (arrivalIndex === departureIndex); // Ensure different airports
+    } while (arrivalIndex === departureIndex);
     
     departure = airports[departureIndex].city;
     arrival = airports[arrivalIndex].city;
@@ -129,8 +184,29 @@ export const generateFlight = (id: number): FlightData => {
   // Select aircraft
   const aircraft = aircraftTypes[Math.floor(Math.random() * aircraftTypes.length)];
   
-  // Generate flight time (within the next 30 days)
+  // Generate flight time
   const now = new Date();
+  const flightDate = targetDate || new Date(now);
+  
+  if (!targetDate) {
+    // If no target date, generate for next 7 days
+    flightDate.setDate(flightDate.getDate() + Math.floor(Math.random() * 7) + 1);
+  }
+  
+  // Set random hour between 6 AM and 10 PM
+  flightDate.setHours(6 + Math.floor(Math.random() * 16), Math.floor(Math.random() * 60), 0, 0);
+  
+  const isInternational = isInternationalRoute(departure, arrival);
+  
+  // Generate seats for each class with appropriate pricing
+  const seats = {
+    economy: generateSeats(aircraft.economy, 'economy', isInternational, flightDate),
+    comfortPlus: generateSeats(Math.floor(aircraft.economy * 0.1), 'comfortPlus', isInternational, flightDate),
+    first: generateSeats(Math.floor(aircraft.economy * 0.05), 'first', isInternational, flightDate),
+    deltaOne: generateSeats(Math.floor(aircraft.economy * 0.03), 'deltaOne', isInternational, flightDate)
+  };
+  
+  // Generate flight time (within the next 30 days)
   const flightTime = new Date(
     now.getTime() + Math.random() * 30 * 24 * 60 * 60 * 1000
   );
@@ -144,14 +220,6 @@ export const generateFlight = (id: number): FlightData => {
   const airlines = ['BA', 'AA', 'UA', 'DL', 'LH', 'AF', 'SQ', 'EK'];
   const airline = airlines[Math.floor(Math.random() * airlines.length)];
   const flightNumber = `${airline}${100 + id}`;
-  
-  // Generate seats for each class
-  const seats = {
-    economy: generateSeats(aircraft.economy, 'economy'),
-    comfortPlus: generateSeats(Math.floor(aircraft.economy * 0.1), 'comfortPlus'),
-    first: generateSeats(Math.floor(aircraft.economy * 0.05), 'first'),
-    deltaOne: generateSeats(Math.floor(aircraft.economy * 0.03), 'deltaOne')
-  };
   
   // Flight status (90% on-time, 8% delayed, 2% cancelled)
   const statusRandom = Math.random();
@@ -218,10 +286,10 @@ export const generateAtlantaToNewYorkFlights = (targetDate?: Date): FlightData[]
       status: 'on time',
       aircraft: aircraft.model,
       seats: {
-        economy: generateSeats(104, 'economy'),
-        comfortPlus: generateSeats(20, 'comfortPlus'),
-        first: generateSeats(0, 'first'),
-        deltaOne: generateSeats(9, 'deltaOne')
+        economy: generateSeats(104, 'economy', false, flightDate),
+        comfortPlus: generateSeats(20, 'comfortPlus', false, flightDate),
+        first: generateSeats(0, 'first', false, flightDate),
+        deltaOne: generateSeats(9, 'deltaOne', false, flightDate)
       },
       duration,
       gate: `B${id + 10}`
@@ -260,10 +328,10 @@ export const generateNewYorkToAtlantaFlights = (targetDate?: Date): FlightData[]
       status: 'on time',
       aircraft: aircraft.model,
       seats: {
-        economy: generateSeats(104, 'economy'),
-        comfortPlus: generateSeats(20, 'comfortPlus'),
-        first: generateSeats(0, 'first'),
-        deltaOne: generateSeats(9, 'deltaOne')
+        economy: generateSeats(104, 'economy', false, flightDate),
+        comfortPlus: generateSeats(20, 'comfortPlus', false, flightDate),
+        first: generateSeats(0, 'first', false, flightDate),
+        deltaOne: generateSeats(9, 'deltaOne', false, flightDate)
       },
       duration,
       gate: `A${id + 10}`
@@ -281,7 +349,7 @@ export const generateFlights = (count: number, targetDate?: Date): FlightData[] 
   
   // Generate remaining random flights
   for (let i = flights.length; i < count; i++) {
-    const flight = generateFlight(i);
+    const flight = generateFlight(i, targetDate);
     
     // If target date specified, adjust the flight time to that date but keep the hour/minute
     if (targetDate) {

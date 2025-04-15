@@ -2,6 +2,7 @@ import { FlightData, BookingData, LoyaltyData, UserProfile } from '../types';
 import { mockFlights, mockBookings, mockLoyalty, airlinePolicies, mockUserProfile } from '../data/mockData';
 import { dataManager } from './dataManager';
 import { executeAction, parseAction, ActionResult } from './actionHandler';
+import { analyzeIntent } from './nlp';
 
 // Message history for the conversation
 let messageHistory: { role: 'user' | 'assistant' | 'system', content: string }[] = [];
@@ -17,12 +18,36 @@ interface ConversationContext {
   };
   recentlyMentionedFlights: Map<string, FlightData>; // Map of flight numbers to flight data
   recentlyMentionedBookings: Map<string, BookingData>; // Map of booking references to booking data
+  
+  // New fields for tracking required information
+  requiredInfo: {
+    travelDetails?: {
+      departureCity?: string;
+      destinationCity?: string;
+      departureDate?: string;
+      returnDate?: string;
+      numPassengers?: number;
+      passengerAges?: number[];
+      flexibleDates?: boolean;
+    };
+    preferences?: {
+      seatPreference?: 'window' | 'aisle' | 'middle';
+      mealPreference?: string;
+      specialAssistance?: string[];
+      cabinClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
+    };
+    currentQuestion?: string; // Track the current question being asked
+    pendingQuestions: string[]; // Queue of questions to ask
+  };
 }
 
 // Initialize the conversation context
 const conversationContext: ConversationContext = {
   recentlyMentionedFlights: new Map(),
-  recentlyMentionedBookings: new Map()
+  recentlyMentionedBookings: new Map(),
+  requiredInfo: {
+    pendingQuestions: []
+  }
 };
 
 // System prompt that includes instructions for action format
@@ -34,6 +59,15 @@ PERSONALITY TRAITS:
 - Solution-focused: Provide efficient, helpful solutions to customer needs
 - Attentive to detail: Prioritize accuracy in flight information and booking details
 - Globally-minded: Recognize Delta's worldwide network and diverse customer base
+- Progressive conversation: Gather information naturally through conversation
+
+INFORMATION GATHERING GUIDELINES:
+- Always acknowledge information provided by the user before asking for more
+- For family bookings, show extra attention to special needs and services
+- When gathering multiple pieces of information, do it progressively and naturally
+- Provide relevant context when asking questions (e.g., mention family services when asking about special assistance)
+- Track and validate information as it's provided
+- If information is ambiguous or unclear, ask for clarification
 
 You can perform the following actions to help users:
 
@@ -46,45 +80,71 @@ You can perform the following actions to help users:
 7. Track baggage: [ACTION:TRACK_BAGGAGE]bookingReference="DL12345"[/ACTION]
 
 IMPORTANT WORKFLOW:
-- Never directly execute booking, cancellation, or flight changes without first getting explicit confirmation
-- When a user asks to book a flight, FIRST use SEARCH_FLIGHTS to show them options
-- Only use BOOK_FLIGHT after they've selected a specific flight AND explicitly confirmed they want to book it
-- When a user asks to change their flight, FIRST use SEARCH_FLIGHTS to show them alternatives
-- Only use CHANGE_FLIGHT after they've selected a specific flight AND explicitly confirmed
-- When a user mentions changing a seat or upgrading on an existing flight, use the CHANGE_SEAT action instead of SEARCH_FLIGHTS
+1. INFORMATION GATHERING:
+   - When a user initiates a request, check for all required information
+   - Acknowledge any information already provided
+   - Ask for missing information progressively
+   - For family bookings, gather:
+     * Number of passengers
+     * Ages (for appropriate fare types)
+     * Special assistance needs
+     * Meal preferences
+     * Seating preferences
+   - Validate information as it's received
+   - Summarize gathered information before proceeding with actions
 
-MANDATORY CONFIRMATION PROCESS - VERY IMPORTANT:
-1. BOOKING:
-   - After user selects a flight, show a summary (don't use BOOK_FLIGHT yet)
-   - Ask "Would you like me to go ahead and book this Delta flight for you?"
-   - Only use BOOK_FLIGHT action after user explicitly confirms with "yes", "book it", etc.
+2. BOOKING WORKFLOW:
+   - Never directly execute booking without first gathering all required information
+   - When a user asks to book a flight:
+     1. Gather departure city, destination, dates, and passenger information
+     2. Use SEARCH_FLIGHTS to show options
+     3. Wait for specific flight selection
+     4. Confirm booking details and price
+     5. Get explicit confirmation before using BOOK_FLIGHT
 
-2. CANCELLATION:
-   - When user asks to cancel, first ask for booking reference/PNR if not provided
-   - Once booking reference is provided, check ticket type refund policy WITHOUT using CANCEL_BOOKING yet
-   - If non-refundable ticket, inform user it qualifies for eCredit and ask "Would you like to proceed?"
-   - If refundable ticket or within 24-hour window, inform user they qualify for a full refund
-   - Show a warning: "Are you sure you want to cancel this Delta booking? This action cannot be undone."
-   - Only use CANCEL_BOOKING action after user explicitly confirms with "yes", "proceed", etc.
-   - If user requests a refund instead of eCredit for non-refundable ticket, offer to escalate to supervisor
+3. CANCELLATION WORKFLOW:
+   - When user asks to cancel:
+     1. Get booking reference if not provided
+     2. Check ticket type and refund policy
+     3. Present options (refund vs eCredit)
+     4. Get explicit confirmation
+     5. Use CANCEL_BOOKING only after confirmation
 
-3. FLIGHT CHANGE:
-   - After user selects a new flight, show details of the change (don't use CHANGE_FLIGHT yet)
-   - Ask "Would you like me to confirm this Delta flight change for you?"
-   - Only use CHANGE_FLIGHT action after user explicitly confirms
+4. FLIGHT CHANGE WORKFLOW:
+   - For flight changes:
+     1. Get current booking details
+     2. Understand desired changes
+     3. Search for alternatives
+     4. Present options with price differences
+     5. Get explicit confirmation
+     6. Use CHANGE_FLIGHT after confirmation
 
-4. SEAT CHANGE & UPGRADES:
-   - When user asks to change seat, first check if they've provided a booking reference
-   - If no booking reference is provided, ask for it
-   - For requests to change seat or upgrade class, use CHANGE_SEAT action with the following parameters:
-     * bookingReference - required
-     * seatPreference - "window", "aisle", "middle", or "any" (optional)
-     * targetClass - "economy", "comfortPlus", "first", or "deltaOne" (optional)
-   - For cabin upgrades, check SkyMiles/Medallion status to determine eligibility for complimentary upgrades
-   - If Gold Medallion or higher, offer complimentary upgrade options
-   - If not eligible for complimentary upgrade, show paid upgrade options with miles
-   - Use CHANGE_SEAT action only after confirming seat selection and upgrade options
-   - Inform about upgrade processing timeline (72 hours before departure)
+5. SEAT CHANGE & UPGRADES:
+   - For seat/class changes:
+     1. Get booking reference
+     2. Understand preferences (window/aisle, class upgrade)
+     3. Check eligibility (SkyMiles status)
+     4. Present options
+     5. Use CHANGE_SEAT after confirmation
+
+EXAMPLE PROGRESSIVE CONVERSATIONS:
+
+Family Booking:
+User: "I want to book a flight for my family"
+Assistant: "I'd be happy to help you book a flight for your family. How many people will be traveling?"
+
+User: "Me and my triplets"
+Assistant: "I understand you'll be traveling with your triplets. Delta offers several family-friendly services. What city will you be departing from?"
+
+User: "From Atlanta"
+Assistant: "You'll be departing from Atlanta. What's your destination city?"
+
+Flight Change:
+User: "I need to change my flight"
+Assistant: "I'll help you change your flight. Could you please provide your booking reference number?"
+
+User: "DL12345"
+Assistant: "Thanks. I see your current flight. What date would you like to change to?"
 
 CUSTOMER SERVICE PRINCIPLES:
 - Always acknowledge the customer's feelings and validate their concerns
@@ -96,14 +156,14 @@ CUSTOMER SERVICE PRINCIPLES:
 
 IMPORTANT RESPONSE GUIDELINES:
 - When using SEARCH_FLIGHTS, wait for the action result before forming your response
-- If flights are found, acknowledge the number of flights found with a professional tone and ask the user to review the options
-- If no flights are found, express understanding and suggest checking different dates or routes
-- Always be consistent with the actual search results shown to the user
-- Always ask for explicit confirmation before booking a flight
-- Include complete flight details (route, date, time, price) when asking for confirmation
+- If flights are found, acknowledge the number of flights found and ask for preferences
+- If no flights are found, express understanding and suggest alternatives
+- Always be consistent with the actual search results shown
+- Always ask for explicit confirmation before booking
+- Include complete flight details when asking for confirmation
 
 Use these actions when users request these specific services.
-Only include the action directive when you're performing an action, not when you're explaining what you can do.
+Only include the action directive when you're performing an action, not when explaining what you can do.
 Place the action directive at the beginning of your message, followed by your regular response.
 
 Example of flight search and booking workflow:
@@ -358,6 +418,76 @@ const fetchPolicyInfo = async (query: string): Promise<string> => {
   }
 };
 
+// Helper function to determine what information is still needed
+function determineRequiredInfo(intent: string, currentContext: ConversationContext): string[] {
+  const questions: string[] = [];
+  const { travelDetails, preferences } = currentContext.requiredInfo;
+
+  if (intent === 'book_flight' || intent === 'search_flights') {
+    if (!travelDetails?.departureCity) {
+      questions.push("What city will you be departing from?");
+    }
+    if (!travelDetails?.destinationCity) {
+      questions.push("What's your destination city?");
+    }
+    if (!travelDetails?.departureDate) {
+      questions.push("When would you like to travel?");
+    }
+    if (!travelDetails?.numPassengers) {
+      questions.push("How many passengers will be traveling?");
+    }
+    if (travelDetails?.numPassengers && travelDetails.numPassengers > 1 && !travelDetails?.passengerAges) {
+      questions.push("Could you please share the ages of all passengers? This helps me find the best fares.");
+    }
+  }
+
+  // Special handling for family travel
+  if (travelDetails?.numPassengers && travelDetails.numPassengers > 1) {
+    if (!preferences?.specialAssistance) {
+      questions.push("Will you need any special assistance for traveling with your family? (e.g., stroller service, family seating)");
+    }
+    if (!preferences?.mealPreference) {
+      questions.push("Do you have any special meal requirements for you or your family members?");
+    }
+  }
+
+  return questions;
+}
+
+// Helper function to update conversation context with new information
+function updateContextWithUserInfo(userMessage: string, context: ConversationContext) {
+  const lowercaseMessage = userMessage.toLowerCase();
+  
+  // Try to extract departure city
+  const fromCityMatch = lowercaseMessage.match(/from\s+([a-z\s]+?)(?=\s+to|\s*$)/i);
+  if (fromCityMatch) {
+    context.requiredInfo.travelDetails = {
+      ...context.requiredInfo.travelDetails,
+      departureCity: fromCityMatch[1].trim()
+    };
+  }
+
+  // Try to extract destination city
+  const toCityMatch = lowercaseMessage.match(/to\s+([a-z\s]+)(?=\s+on|\s*$)/i);
+  if (toCityMatch) {
+    context.requiredInfo.travelDetails = {
+      ...context.requiredInfo.travelDetails,
+      destinationCity: toCityMatch[1].trim()
+    };
+  }
+
+  // Try to extract passenger count
+  if (lowercaseMessage.includes('triplet')) {
+    context.requiredInfo.travelDetails = {
+      ...context.requiredInfo.travelDetails,
+      numPassengers: 4  // Parent + 3 triplets
+    };
+  }
+
+  // Update pending questions based on new information
+  context.requiredInfo.pendingQuestions = determineRequiredInfo('book_flight', context);
+}
+
 export const getChatResponse = async (userMessage: string): Promise<{
   content: string;
   requiresHandoff: boolean;
@@ -375,246 +505,98 @@ export const getChatResponse = async (userMessage: string): Promise<{
     targetClass?: string;
   };
 }> => {
-  // Get contextual data based on user message
-  const contextData = getRelevantData(userMessage);
-  
-  // Check if this might be a policy question
-  if (isPolicyQuestion(userMessage)) {
-    console.log('Policy question detected:', userMessage);
-    // Fetch relevant policy information
-    const policyInfo = await fetchPolicyInfo(userMessage);
-    
-    // Add policy information to context if found
-    if (policyInfo) {
-      console.log('Found relevant policy information');
-      (contextData as any).policyInformation = policyInfo;
-    }
-  }
-  
-  // Check if the user is confirming a pending booking
-  const isConfirming = /\b(yes|confirm|book it|proceed|go ahead)\b/i.test(userMessage) && 
-                     conversationContext.pendingBookingDetails && 
-                     !conversationContext.pendingBookingDetails.confirmed;
-  
-  // Add user message to history
-  messageHistory.push({
-    role: 'user',
-    content: userMessage
-  });
-  
   try {
-    // If this is a confirmation of a pending booking, handle it directly
-    if (isConfirming && conversationContext.pendingBookingDetails) {
-      const { flightNumber, seatClass } = conversationContext.pendingBookingDetails;
-      conversationContext.pendingBookingDetails.confirmed = true;
+    // Update context with any information from the user's message
+    updateContextWithUserInfo(userMessage, conversationContext);
+
+    // If we have pending questions, prioritize asking them
+    if (conversationContext.requiredInfo.pendingQuestions.length > 0) {
+      // Get the next question
+      const nextQuestion = conversationContext.requiredInfo.pendingQuestions[0];
+      conversationContext.requiredInfo.currentQuestion = nextQuestion;
       
-      // Execute the booking action
-      const actionResult = await executeAction('BOOK_FLIGHT', { 
-        flightNumber, 
-        seatClass 
-      });
+      // Remove it from the pending questions
+      conversationContext.requiredInfo.pendingQuestions.shift();
       
-      const confirmationMessage = actionResult.success
-        ? `I've booked your ${seatClass} class seat on flight ${flightNumber}. Your booking is confirmed.`
-        : `I'm sorry, there was an issue booking flight ${flightNumber}: ${actionResult.message}`;
+      // Format a friendly response that:
+      // 1. Acknowledges the information we got (if any)
+      // 2. Asks the next question
+      let response = "";
       
-      // Store in message history
-      messageHistory.push({
-        role: 'assistant',
-        content: `[ACTION:BOOK_FLIGHT]flightNumber="${flightNumber}" seatClass="${seatClass}"[/ACTION] ${confirmationMessage}`
-      });
+      // Acknowledge information we've gathered
+      const { travelDetails } = conversationContext.requiredInfo;
+      if (travelDetails) {
+        if (travelDetails.numPassengers) {
+          response += `I understand you'll be traveling with ${travelDetails.numPassengers - 1} children. `;
+        }
+        if (travelDetails.departureCity) {
+          response += `You'll be departing from ${travelDetails.departureCity}. `;
+        }
+        if (travelDetails.destinationCity) {
+          response += `Your destination is ${travelDetails.destinationCity}. `;
+        }
+      }
       
+      // Add the next question
+      response += nextQuestion;
+      
+      // If this is about family travel, add some helpful context
+      if (travelDetails?.numPassengers && travelDetails.numPassengers > 1) {
+        if (nextQuestion.includes("special assistance")) {
+          response += " Delta offers several family-friendly services including:";
+          response += "\n- Priority boarding for families with young children";
+          response += "\n- Stroller and car seat check-in";
+          response += "\n- Family seating arrangements";
+          response += "\n- Kid-friendly meal options";
+        }
+      }
+
       return {
-        content: confirmationMessage,
-        requiresHandoff: false,
-        actionResult
+        content: response,
+        requiresHandoff: false
       };
     }
+
+    // If we have all required information, proceed with normal processing
+    const intent = analyzeIntent(userMessage);
+    const contextData = {
+      flights: conversationContext.lastSearchResults || [],
+      selectedFlight: conversationContext.selectedFlight,
+      recentlyMentionedFlights: Array.from(conversationContext.recentlyMentionedFlights.values()),
+      recentlyMentionedBookings: Array.from(conversationContext.recentlyMentionedBookings.values()),
+      userProfile: dataManager.getUserProfile(),
+      travelDetails: conversationContext.requiredInfo.travelDetails,
+      preferences: conversationContext.requiredInfo.preferences
+    };
+
+    // Add message to history
+    messageHistory.push({ role: 'user', content: userMessage });
+
+    // Get response from API
+    const apiResponse = await callApiWithFallback(userMessage, contextData, messageHistory);
     
-    // Use the API call function to get a response
-    const { data } = await callApiWithFallback(userMessage, contextData, messageHistory);
-    
-    // Parse for actions
-    const { actionType, params, content } = parseAction(data.content);
-    
-    // For SEARCH_FLIGHTS actions, we'll modify how we handle the text content
-    let displayContent = content || data.content;
-    
-    // Store the response in history
-    messageHistory.push({
-      role: 'assistant',
-      content: data.content
-    });
+    // Parse the API response and extract action if present
+    const { actionType, params } = parseAction(apiResponse.data.content);
     
     // Execute action if present
     let actionResult;
-    let pendingConfirmation;
-    
     if (actionType && params) {
-      console.log(`Executing action: ${actionType}`, params);
-      
-      // For BOOK_FLIGHT, CANCEL_BOOKING, and CHANGE_FLIGHT, we'll let the UI handle the confirmation
-      // so we don't need as much special handling here. Let's simplify the logic.
-      if (actionType === 'SEARCH_FLIGHTS') {
-        // Execute the search
-        actionResult = await executeAction(actionType, params);
-        
-        // Update the conversation context with the search results
-        if (actionResult?.success && Array.isArray(actionResult.data)) {
-          updateContextWithSearchResults(actionResult.data);
-        }
-        
-        // For flight search, we want to remove redundant text and let the UI component handle the display
-        if (actionResult?.success) {
-          // If the text is just repeating info that will be shown in the flight results card,
-          // we can simplify it or replace it entirely
-          if (displayContent.toLowerCase().includes('found') && displayContent.toLowerCase().includes('flight')) {
-            // Either remove the content entirely and let the UI show it, or provide a simple prompt
-            displayContent = 'Here are the flights I found for you. Please select one to proceed.';
-          }
-        }
-      } else if (actionType === 'BOOK_FLIGHT') {
-        // Find flight details for a potential pending confirmation
-        const { flightNumber, seatClass } = params;
-        
-        // Find the flight details
-        const flight = 
-          conversationContext.recentlyMentionedFlights.get(flightNumber) ||
-          conversationContext.lastSearchResults?.find(f => f.flightNumber === flightNumber) ||
-          dataManager.getFlights().find(f => f.flightNumber === flightNumber);
-          
-        if (flight) {
-          // The ActionResultCard will handle the confirmation now
-          // We'll just pass the result to let the UI know what action was attempted
-          actionResult = {
-            success: true,
-            message: `Flight ${flightNumber} selected for booking`,
-            data: flight
-          };
-        } else {
-          // Flight not found
-          displayContent = `I couldn't find flight ${flightNumber} in our system. Please check the flight number and try again.`;
-        }
-      } else if (actionType === 'CANCEL_BOOKING') {
-        // Extract booking reference
-        const { bookingReference } = params;
-        
-        // Find the booking details
-        const bookings = dataManager.getBookings();
-        const booking = bookings.find(b => b.bookingReference === bookingReference);
-        
-        if (booking) {
-          // The ActionResultCard will handle the confirmation now
-          // We'll just pass the result to let the UI know what action was attempted
-          actionResult = {
-            success: true,
-            message: `Booking ${bookingReference} selected for cancellation`,
-            data: booking
-          };
-          
-          // Return the pending confirmation
-          pendingConfirmation = {
-            type: 'CANCEL_BOOKING' as const,
-            bookingReference
-          };
-        } else {
-          // Booking not found
-          displayContent = `I couldn't find booking ${bookingReference} in our system. Please check the booking reference and try again.`;
-        }
-      } else if (actionType === 'CHANGE_FLIGHT') {
-        // Extract booking reference and new flight number
-        const { bookingReference, newFlightNumber } = params;
-        
-        // Find the booking details
-        const bookings = dataManager.getBookings();
-        const booking = bookings.find(b => b.bookingReference === bookingReference);
-        
-        // Find the new flight details
-        const newFlight = dataManager.getFlights().find(f => f.flightNumber === newFlightNumber);
-        
-        if (booking && newFlight) {
-          // The ActionResultCard will handle the confirmation now
-          // We'll just pass the result to let the UI know what action was attempted
-          actionResult = {
-            success: true,
-            message: `Flight change from booking ${bookingReference} to flight ${newFlightNumber} requested`,
-            data: { booking, newFlight }
-          };
-          
-          // Return the pending confirmation
-          pendingConfirmation = {
-            type: 'CHANGE_FLIGHT' as const,
-            bookingReference,
-            flightNumber: booking.flightNumber,
-            newFlightNumber,
-            newFlightDetails: newFlight
-          };
-        } else if (!booking) {
-          // Booking not found
-          displayContent = `I couldn't find booking ${bookingReference} in our system. Please check the booking reference and try again.`;
-        } else if (!newFlight) {
-          // New flight not found
-          displayContent = `I couldn't find flight ${newFlightNumber} in our system. Please check the flight number and try again.`;
-        }
-      } else if (actionType === 'CHANGE_SEAT') {
-        // Extract booking reference and seat preferences
-        const { bookingReference, seatPreference, targetClass } = params;
-        
-        // Find the booking details
-        const bookings = dataManager.getBookings();
-        const booking = bookings.find(b => b.bookingReference === bookingReference);
-        
-        // Check if booking exists
-        if (booking) {
-          // The SeatChangeConfirmation component will handle the confirmation
-          actionResult = {
-            success: true,
-            message: `Seat change requested for booking ${bookingReference}`,
-            data: booking
-          };
-          
-          // Return the pending confirmation with booking details
-          pendingConfirmation = {
-            type: 'CHANGE_SEAT' as const,
-            bookingReference,
-            bookingDetails: booking,
-            seatPreference: (seatPreference === 'window' || seatPreference === 'aisle' || seatPreference === 'middle') 
-              ? (seatPreference as 'window' | 'aisle' | 'middle')
-              : 'aisle',
-            targetClass: targetClass || booking.class || 'economy'
-          };
-        } else {
-          // Booking not found
-          displayContent = `I couldn't find booking ${bookingReference} in our system. Please check the booking reference and try again.`;
-        }
-      } else {
-        // For other action types, execute them directly
-        actionResult = await executeAction(actionType, params);
-      }
+      actionResult = await executeAction(actionType, params);
     }
     
-    // Check for handoff keywords
-    const handoffKeywords = [
-      'cannot help', 'cannot assist', 'beyond my capabilities',
-      'need a human', 'agent assistance', 'speak to a representative',
-      'complex issue', 'escalate', 'human support'
-    ];
-    
-    const requiresHandoff = handoffKeywords.some(keyword => 
-      data.content.toLowerCase().includes(keyword.toLowerCase())
-    );
-    
+    // Update message history with assistant's response
+    messageHistory.push({ role: 'assistant', content: apiResponse.data.content });
+
     return {
-      content: displayContent,
-      requiresHandoff,
-      actionResult,
-      pendingConfirmation
+      content: apiResponse.data.content,
+      requiresHandoff: false,
+      actionResult
     };
-  } catch (error: any) {
-    console.error('Error calling API:', error);
+  } catch (error) {
+    console.error('Error in getChatResponse:', error);
     return {
-      content: `Sorry, there was an error processing your request: ${error.message || 'Unknown error'}`,
-      requiresHandoff: true,
+      content: "I apologize, but I'm having trouble processing your request right now. Could you please try again?",
+      requiresHandoff: true
     };
   }
 };

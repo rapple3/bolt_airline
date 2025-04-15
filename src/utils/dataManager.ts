@@ -6,22 +6,44 @@ import { FlightData, BookingData, UserProfile, SeatInfo } from '../types';
 type Subscriber = () => void;
 
 class DataManager {
-  private flights: FlightData[];
-  private bookings: BookingData[];
-  private userProfile: UserProfile;
+  private flights: FlightData[] = [];
+  private bookings: BookingData[] = [];
+  private userProfile: UserProfile = { ...mockUserProfile };
   private subscribers: Subscriber[] = [];
+  private lastFlightUpdate: string = '';
 
   constructor() {
-    // Generate mock flights including specific route data
-    const generatedFlights = generateFlights(20); // 20 flights including guaranteed ATL-JFK routes
+    this.lastFlightUpdate = this.loadFromStorage('lastFlightUpdate') || '';
     
-    // Try to load from localStorage first, fallback to generated mock data
-    this.flights = this.loadFromStorage('flights') || generatedFlights;
+    // Check if we need to refresh flights on initial load
+    if (this.shouldRefreshFlights()) {
+      this.refreshFlights();
+    } else {
+      // Load existing flights
+      this.flights = this.loadFromStorage('flights') || generateFlights(20);
+    }
+    
+    // Load other data
     this.bookings = this.loadFromStorage('bookings') || [...mockBookings];
     this.userProfile = this.loadFromStorage('userProfile') || { ...mockUserProfile };
     
     // Save initial data if it doesn't exist
     this.saveToStorage();
+  }
+
+  private shouldRefreshFlights(): boolean {
+    const today = new Date().toISOString().split('T')[0];
+    return this.lastFlightUpdate !== today;
+  }
+
+  private refreshFlights(): void {
+    console.log('Refreshing flights for new day...');
+    const generatedFlights = generateFlights(20);
+    this.flights = generatedFlights;
+    this.lastFlightUpdate = new Date().toISOString().split('T')[0];
+    localStorage.setItem('airline_app_lastFlightUpdate', this.lastFlightUpdate);
+    this.saveToStorage();
+    this.notifySubscribers();
   }
 
   // Storage methods
@@ -40,6 +62,7 @@ class DataManager {
       localStorage.setItem('airline_app_flights', JSON.stringify(this.flights));
       localStorage.setItem('airline_app_bookings', JSON.stringify(this.bookings));
       localStorage.setItem('airline_app_userProfile', JSON.stringify(this.userProfile));
+      localStorage.setItem('airline_app_lastFlightUpdate', this.lastFlightUpdate);
     } catch (e) {
       console.error('Error saving to storage:', e);
     }
@@ -57,12 +80,18 @@ class DataManager {
     this.subscribers.forEach(callback => callback());
   }
 
-  // Data access methods
+  // Data access methods with refresh check
   getFlights(): FlightData[] {
+    if (this.shouldRefreshFlights()) {
+      this.refreshFlights();
+    }
     return this.flights;
   }
 
   getFlight(flightNumber: string): FlightData | undefined {
+    if (this.shouldRefreshFlights()) {
+      this.refreshFlights();
+    }
     return this.flights.find(f => f.flightNumber === flightNumber);
   }
 
@@ -114,6 +143,11 @@ class DataManager {
   }
 
   changeFlight(bookingReference: string, newFlightNumber: string): boolean {
+    // Check if flights need refresh before changing
+    if (this.shouldRefreshFlights()) {
+      this.refreshFlights();
+    }
+
     const bookingIndex = this.bookings.findIndex(b => 
       b.bookingReference === bookingReference && 
       b.customerId === this.userProfile.customerId
@@ -165,6 +199,11 @@ class DataManager {
   }
   
   createBooking(flightNumber: string, seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'): boolean {
+    // Check if flights need refresh before booking
+    if (this.shouldRefreshFlights()) {
+      this.refreshFlights();
+    }
+
     const flight = this.flights.find(f => f.flightNumber === flightNumber);
     if (!flight) return false;
     
