@@ -1,37 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { dataManager } from '../utils/dataManager';
 import { UserProfile } from '../types';
-import { Calendar, Plane, Award, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Calendar, Plane, Award, ChevronDown, ChevronUp, User, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface UserProfileCardProps {
-  profile?: UserProfile; // Make this optional since we'll get it from dataManager
+  profile?: UserProfile;
 }
 
 export default function UserProfileCard({ profile: propProfile }: UserProfileCardProps) {
-  const [profile, setProfile] = useState<UserProfile>(propProfile || dataManager.getUserProfile());
+  // Initialize state from dataManager, props will update through useEffect
+  const [profile, setProfile] = useState<UserProfile>(dataManager.getUserProfile());
   const [isExpanded, setIsExpanded] = useState(true);
   
   useEffect(() => {
-    console.log('Setting up subscription');
-    const unsubscribe = dataManager.subscribe(() => {
-      console.log('Subscription triggered');
-      const newProfile = dataManager.getUserProfile();
-      console.log('New profile:', newProfile);
-      setProfile(newProfile);
-    });
-    
-    return () => {
-      console.log('Cleaning up subscription');
-      unsubscribe();
-    };
-  }, []);
-  
-  useEffect(() => {
+    // Update from props if provided
     if (propProfile) {
       setProfile(propProfile);
     }
-  }, [propProfile]);
+    
+    // Subscribe to dataManager updates
+    const unsubscribe = dataManager.subscribe(() => {
+      const newProfile = dataManager.getUserProfile();
+      // Only update if the profile actually changed
+      setProfile(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(newProfile)) {
+          return newProfile;
+        }
+        return prev;
+      });
+    });
+    
+    return () => unsubscribe();
+  }, [propProfile]); // Only re-run if propProfile changes
   
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -110,10 +111,25 @@ export default function UserProfileCard({ profile: propProfile }: UserProfileCar
                               <Calendar className="w-3 h-3" />
                               {format(new Date(flight.date), 'MMM d, yyyy')}
                             </div>
+                            {(() => {
+                              const flightData = dataManager.getFlight(flight.flightNumber);
+                              return flightData && (
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                  <MapPin className="w-3 h-3" />
+                                  To: {flightData.arrival}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
-                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">
-                          {flight.status}
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          flight.status === 'confirmed' 
+                            ? 'bg-blue-100 text-blue-700'
+                            : flight.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {flight.status === 'confirmed' ? 'Upcoming' : flight.status}
                         </span>
                       </div>
                       {flight.seatInfo && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plane, Clock, Calendar, Check } from 'lucide-react';
+import { Plane, Clock, Calendar, Check, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 
 // Flight option interface
@@ -13,6 +13,12 @@ interface FlightOption {
   economySeats: number;
   businessSeats: number;
   firstClassSeats: number;
+  prices: {
+    economy: number;
+    comfortPlus: number;
+    first: number;
+    deltaOne?: number;
+  };
 }
 
 interface FlightOptionsProps {
@@ -101,19 +107,43 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
             </div>
             
             <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
-              <div className="text-center">
+              <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">Economy</p>
                 <p className="font-medium">{flight.economySeats} seats</p>
+                <div className="flex items-center justify-center mt-1 text-green-600">
+                  <DollarSign className="w-3 h-3" />
+                  <span>{flight.prices.economy}</span>
+                </div>
               </div>
-              <div className="text-center">
+              <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">Comfort+</p>
                 <p className="font-medium">{flight.businessSeats} seats</p>
+                <div className="flex items-center justify-center mt-1 text-green-600">
+                  <DollarSign className="w-3 h-3" />
+                  <span>{flight.prices.comfortPlus}</span>
+                </div>
               </div>
-              <div className="text-center">
+              <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">First Class</p>
                 <p className="font-medium">{flight.firstClassSeats} seats</p>
+                <div className="flex items-center justify-center mt-1 text-green-600">
+                  <DollarSign className="w-3 h-3" />
+                  <span>{flight.prices.first}</span>
+                </div>
               </div>
             </div>
+            
+            {selectedFlight === flight.flightNumber && flight.prices.deltaOne && (
+              <div className="mt-2">
+                <div className="text-center p-2 bg-blue-50 rounded-lg">
+                  <p className="text-blue-600">Delta One</p>
+                  <div className="flex items-center justify-center mt-1 text-green-600">
+                    <DollarSign className="w-3 h-3" />
+                    <span>{flight.prices.deltaOne}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
@@ -122,46 +152,73 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
         <div className="mt-4">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Select Class:</h4>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-            <button
-              className={`px-3 py-2 rounded-md text-sm ${
-                selectedClass === 'economy'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => handleClassSelect('economy')}
-            >
-              Economy
-            </button>
-            <button
-              className={`px-3 py-2 rounded-md text-sm ${
-                selectedClass === 'comfortPlus'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => handleClassSelect('comfortPlus')}
-            >
-              Comfort+
-            </button>
-            <button
-              className={`px-3 py-2 rounded-md text-sm ${
-                selectedClass === 'first'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => handleClassSelect('first')}
-            >
-              First Class
-            </button>
-            <button
-              className={`px-3 py-2 rounded-md text-sm ${
-                selectedClass === 'deltaOne'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => handleClassSelect('deltaOne')}
-            >
-              Delta One
-            </button>
+            {(() => {
+              const flight = flights.find(f => f.flightNumber === selectedFlight);
+              if (!flight) return null;
+              
+              return (
+                <>
+                  <button
+                    className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                      selectedClass === 'economy'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    onClick={() => handleClassSelect('economy')}
+                  >
+                    <span>Economy</span>
+                    <div className="ml-2 flex items-center">
+                      <DollarSign className="w-3 h-3" />
+                      <span>{flight.prices.economy}</span>
+                    </div>
+                  </button>
+                  <button
+                    className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                      selectedClass === 'comfortPlus'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    onClick={() => handleClassSelect('comfortPlus')}
+                  >
+                    <span>Comfort+</span>
+                    <div className="ml-2 flex items-center">
+                      <DollarSign className="w-3 h-3" />
+                      <span>{flight.prices.comfortPlus}</span>
+                    </div>
+                  </button>
+                  <button
+                    className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                      selectedClass === 'first'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    onClick={() => handleClassSelect('first')}
+                  >
+                    <span>First Class</span>
+                    <div className="ml-2 flex items-center">
+                      <DollarSign className="w-3 h-3" />
+                      <span>{flight.prices.first}</span>
+                    </div>
+                  </button>
+                  {flight.prices.deltaOne && (
+                    <button
+                      className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                        selectedClass === 'deltaOne'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                      onClick={() => handleClassSelect('deltaOne')}
+                    >
+                      <span>Delta One</span>
+                      <div className="ml-2 flex items-center">
+                        <DollarSign className="w-3 h-3" />
+                        <span>{flight.prices.deltaOne}</span>
+                      </div>
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
           
           <button
