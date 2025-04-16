@@ -275,6 +275,53 @@ const getRelevantData = (userMessage: string) => {
   const currentBookings = dataManager.getBookings();
   const currentFlights = dataManager.getFlights();
   
+  // --- Start: Refined Booking Context for Cancellation ---
+  // Explicitly type the array to hold minimal booking info or full BookingData
+  let bookingDataForContext: Array<Partial<BookingData> | BookingData> = []; 
+  const lowerMessage = userMessage.toLowerCase();
+  const isCancellationIntent = lowerMessage.includes('cancel');
+  
+  if (isCancellationIntent) {
+    // Try to extract a flight number (adjust regex if needed)
+    const flightNumMatch = userMessage.match(/DL\d{3,4}/i);
+    const mentionedFlightNumber = flightNumMatch ? flightNumMatch[0].toUpperCase() : null;
+    
+    if (mentionedFlightNumber) {
+      // Find the specific booking for this flight and user
+      const specificBooking = currentBookings.find(b => 
+        b.flightNumber.toUpperCase() === mentionedFlightNumber && 
+        b.status === 'confirmed' // Ensure we only find active bookings
+      );
+      
+      if (specificBooking) {
+        // If found, send ONLY this booking's essential info as context
+        console.log(`Cancellation intent: Found specific booking ${specificBooking.bookingReference} for flight ${mentionedFlightNumber}. Sending minimal context.`);
+        // Ensure we use scheduledTime here
+        bookingDataForContext = [{
+          bookingReference: specificBooking.bookingReference,
+          flightNumber: specificBooking.flightNumber,
+          passengerName: specificBooking.passengerName,
+          scheduledTime: specificBooking.scheduledTime, 
+          status: specificBooking.status
+        }];
+      } else {
+        // Flight mentioned but no matching booking found for user
+        console.log(`Cancellation intent: Flight ${mentionedFlightNumber} mentioned, but no active booking found for user.`);
+        // Send no specific booking context - AI should ask for PNR
+        bookingDataForContext = []; 
+      }
+    } else {
+      // Cancellation intent but no specific flight number mentioned
+      console.log('Cancellation intent: No specific flight number mentioned. Sending full booking list.');
+      // Send the full list if no specific flight is mentioned, let AI figure it out or ask
+      bookingDataForContext = currentBookings; // Send full BookingData objects
+    }
+  } else if (lowerMessage.includes('book') || lowerMessage.includes('reserv') || lowerMessage.includes('change') || lowerMessage.includes('flight')) {
+    // For other relevant intents, send the full list
+    bookingDataForContext = currentBookings; // Send full BookingData objects
+  }
+  // --- End: Refined Booking Context for Cancellation ---
+
   // Resolve any reference to a specific flight
   const referencedFlight = resolveFlightReference(userMessage);
   if (referencedFlight) {
@@ -287,7 +334,13 @@ const getRelevantData = (userMessage: string) => {
     loyaltyTier: currentUserProfile.loyaltyTier,
     loyaltyPoints: currentUserProfile.loyaltyPoints,
     preferences: currentUserProfile.preferences,
-    upcomingFlights: currentUserProfile.upcomingFlights,
+    // Send minimal upcoming flight info, using scheduledTime
+    upcomingFlights: currentUserProfile.upcomingFlights.map(b => ({ 
+        bookingReference: b.bookingReference,
+        flightNumber: b.flightNumber,
+        scheduledTime: b.scheduledTime,
+        status: b.status
+    })),
     // Include activity log if it exists
     ...(currentUserProfile.activityLog && { 
       recentActions: currentUserProfile.activityLog.slice(-3) 
@@ -296,37 +349,34 @@ const getRelevantData = (userMessage: string) => {
   
   // Include conversation context data to help with flight references
   const conversationData = {
-    selectedFlight: conversationContext.selectedFlight,
-    lastSearchResults: conversationContext.lastSearchResults?.slice(0, 3), // Only send the first 3 for context
+    selectedFlight: conversationContext.selectedFlight ? { flightNumber: conversationContext.selectedFlight.flightNumber, scheduledTime: conversationContext.selectedFlight.scheduledTime } : undefined,
+    lastSearchResults: conversationContext.lastSearchResults?.slice(0, 3).map(f => ({ // Send minimal search result info
+        flightNumber: f.flightNumber,
+        departure: f.departure,
+        arrival: f.arrival,
+        scheduledTime: f.scheduledTime
+    })),
     pendingBooking: conversationContext.pendingBookingDetails
   };
   
   // Only include detailed flight info if the message is asking about flights
-  const flightData = userMessage.toLowerCase().includes('flight') || 
-                   userMessage.toLowerCase().includes('travel') || 
-                   userMessage.toLowerCase().includes('trip') || 
-                   userMessage.toLowerCase().includes('book') ? 
-    currentFlights.map(flight => ({
+  const flightDataForContext = lowerMessage.includes('flight') || 
+                   lowerMessage.includes('travel') || 
+                   lowerMessage.includes('trip') || 
+                   lowerMessage.includes('book') ? 
+    currentFlights.slice(0, 10).map(flight => ({ // Limit flight context
       flightNumber: flight.flightNumber,
       departure: flight.departure,
       arrival: flight.arrival,
       scheduledTime: flight.scheduledTime,
       status: flight.status
     })) : [];
-    
-  // Only include booking info if the message is about bookings
-  const bookingData = userMessage.toLowerCase().includes('book') || 
-                     userMessage.toLowerCase().includes('reserv') ||
-                     userMessage.toLowerCase().includes('cancel') || 
-                     userMessage.toLowerCase().includes('change') || 
-                     userMessage.toLowerCase().includes('flight') ? 
-    currentBookings : [];
-  
+      
   // Return relevant data based on user query
   return {
     userProfile: userProfileData,
-    flights: flightData,
-    bookings: bookingData,
+    flights: flightDataForContext,
+    bookings: bookingDataForContext, // Use the refined booking list
     airlinePolicies,
     conversationContext: conversationData
   };
