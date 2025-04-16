@@ -232,17 +232,25 @@ Would you like me to confirm this flight change?`;
   const processFlightsData = () => {
     if (!data || !Array.isArray(data)) return [];
     
-    return data.map(flight => ({
-      flightNumber: flight.flightNumber,
-      departure: flight.departure,
-      arrival: flight.arrival,
-      scheduledTime: flight.scheduledTime,
-      duration: flight.duration,
-      aircraft: flight.aircraft,
-      economySeats: flight.seats?.economy?.filter((seat: any) => seat.status === 'available').length || 0,
-      businessSeats: flight.seats?.business?.filter((seat: any) => seat.status === 'available').length || 0,
-      firstClassSeats: flight.seats?.first?.filter((seat: any) => seat.status === 'available').length || 0
-    }));
+    return data.map(flight => {
+      // Make sure all seat arrays exist
+      const safeSeats = {
+        economy: Array.isArray(flight.seats?.economy) ? flight.seats.economy : [],
+        comfortPlus: Array.isArray(flight.seats?.comfortPlus) ? flight.seats.comfortPlus : [],
+        first: Array.isArray(flight.seats?.first) ? flight.seats.first : [],
+        deltaOne: Array.isArray(flight.seats?.deltaOne) ? flight.seats.deltaOne : []
+      };
+
+      return {
+        flightNumber: flight.flightNumber,
+        departure: flight.departure,
+        arrival: flight.arrival,
+        scheduledTime: flight.scheduledTime,
+        duration: flight.duration || 'N/A',
+        aircraft: flight.aircraft || 'N/A',
+        seats: safeSeats
+      };
+    });
   };
 
   // Check if this is a flight search result with options
