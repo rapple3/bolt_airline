@@ -11,7 +11,7 @@ import { dataManager } from '../utils/dataManager';
 
 interface ChatMessageProps {
   message: Message;
-  onConfirmBooking?: (flightNumber: string, seatClass: string) => void;
+  onConfirmBooking?: (flightNumber: string, seatClass: string, confirmationData: Message['pendingConfirmation']) => void;
   onCancelBooking?: () => void;
   onConfirmCancellation?: (bookingReference: string) => void;
   onCancelCancellation?: () => void;
@@ -72,10 +72,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               flightNumber={pendingConfirmation.flightNumber}
               seatClass={(pendingConfirmation.seatClass || 'economy') as 'economy' | 'comfortPlus' | 'first' | 'deltaOne'}
               onConfirm={() => {
-                if (onConfirmBooking && pendingConfirmation.seatClass) {
+                if (onConfirmBooking && pendingConfirmation.seatClass && pendingConfirmation.type === 'BOOK_FLIGHT') {
                   onConfirmBooking(
                     pendingConfirmation.flightNumber as string, 
-                    pendingConfirmation.seatClass
+                    pendingConfirmation.seatClass,
+                    pendingConfirmation
                   );
                 }
               }}
@@ -176,12 +177,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           <div className="whitespace-pre-wrap mb-3">{content}</div>
           <ActionResultCard
             result={actionResult}
-            onConfirmBooking={onConfirmBooking}
             onCancelBooking={onCancelBooking}
             onConfirmCancellation={onConfirmCancellation}
             onCancelCancellation={onCancelCancellation}
-            onConfirmChange={onConfirmChange}
-            onCancelChange={onCancelChange}
           />
         </>
       );

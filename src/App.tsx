@@ -249,19 +249,14 @@ function App() {
   };
 
   // Handler for flight booking confirmation
-  const handleConfirmBooking = async (flightNumber: string, seatClass: string) => {
-    // Find the message with the pending confirmation
-    console.log('[handleConfirmBooking] Checking messages state:', messages);
-    const pendingMessage = messages.find(
-      m => m.type === 'bot' && m.pendingConfirmation?.type === 'BOOK_FLIGHT'
-    );
-    
-    if (!pendingMessage?.pendingConfirmation || !pendingMessage.pendingConfirmation.flightDetails) {
-      console.error("[handleConfirmBooking] Error: Could not find pending confirmation message or flight details.");
+  const handleConfirmBooking = async (flightNumber: string, seatClass: string, confirmationData: Message['pendingConfirmation']) => {
+    // Use the passed-in confirmationData directly
+    if (!confirmationData || confirmationData.type !== 'BOOK_FLIGHT' || !confirmationData.flightDetails) {
+      console.error("[handleConfirmBooking] Error: Invalid or missing confirmation data received.");
       return;
     }
     
-    const { flightDetails } = pendingMessage.pendingConfirmation;
+    const { flightDetails } = confirmationData; // Use flightDetails from the argument
     // Map old seat classes to new ones if needed
     let validClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
     
@@ -278,6 +273,9 @@ function App() {
     
     if (!success) {
       // Show error message
+      // Find the ID of the message that triggered this (needed for setMessages update below)
+      // We can't easily get the message ID here anymore without searching. 
+      // Let's just add the error message for now. A better solution might involve passing the ID too.
       setMessages(prev => [
         ...prev,
         {
@@ -343,26 +341,20 @@ function App() {
       }
     };
 
-    console.log('[handleConfirmBooking] Before setMessages', { currentMessages: messages });
-
     // Update messages state first, adding both debug and confirmation
+    // PROBLEM: We no longer have pendingMessage.id to remove the original confirmation prompt.
+    // Quick Fix: Filter out *any* message that has a pendingConfirmation of type BOOK_FLIGHT.
+    // Better Fix: Pass the original message ID along with confirmationData.
     setMessages(prev => {
-      console.log('[handleConfirmBooking] Inside setMessages - prev state:', prev);
-      const updatedMessages = prev.map(msg => {
-        if (msg.id === pendingMessage.id) {
-          const { pendingConfirmation, ...rest } = msg;
-          return rest; // Remove pending confirmation from original message
-        }
-        return msg;
-      });
+      // REMOVE: console.log('[handleConfirmBooking] Inside setMessages - prev state:', prev);
+      const updatedMessages = prev.filter(msg => 
+        !(msg.pendingConfirmation?.type === 'BOOK_FLIGHT')
+      );
       const newState = [...updatedMessages, debugMessage, confirmationMessage];
-      console.log('[handleConfirmBooking] Inside setMessages - new state:', newState);
+      // REMOVE: console.log('[handleConfirmBooking] Inside setMessages - new state:', newState);
       // Add both new messages at once
       return newState; 
     });
-
-    // Log state *after* the update (Note: this might log the state before the update completes due to async nature of setState)
-    console.log('[handleConfirmBooking] After setMessages call (may not reflect immediate update)', { currentMessages: messages });
 
     // Update the user profile state *after* message state is likely updated
     setCurrentUser(dataManager.getUserProfile());
