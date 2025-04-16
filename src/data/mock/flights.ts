@@ -216,10 +216,9 @@ export const generateFlight = (id: number, targetDate?: Date): FlightData => {
   const durationMinutes = Math.floor(Math.random() * 60);
   const duration = `${durationHours}h ${durationMinutes}m`;
   
-  // Flight number format: 2 letters + 3-4 digits
-  const airlines = ['BA', 'AA', 'UA', 'DL', 'LH', 'AF', 'SQ', 'EK'];
-  const airline = airlines[Math.floor(Math.random() * airlines.length)];
-  const flightNumber = `${airline}${100 + id}`;
+  // Flight number format: Always use DL + 3-4 digits
+  const airline = 'DL'; // Always Delta
+  const flightNumber = `${airline}${1000 + id}`; // Consistent numbering
   
   // Flight status (90% on-time, 8% delayed, 2% cancelled)
   const statusRandom = Math.random();
@@ -276,7 +275,7 @@ export const generateAtlantaToNewYorkFlights = (targetDate?: Date): FlightData[]
     const aircraft = aircraftTypes[id % aircraftTypes.length];
     const duration = '2h 48m'; // Typical ATL-JFK flight time
     
-    const flightNumber = `WN${6200 + id * 10}`; // WN = Southwest style flight numbers
+    const flightNumber = `DL${6200 + id * 10}`; // Use DL prefix
     
     return {
       flightNumber,
@@ -318,7 +317,7 @@ export const generateNewYorkToAtlantaFlights = (targetDate?: Date): FlightData[]
     const aircraft = aircraftTypes[id % aircraftTypes.length];
     const duration = '2h 35m'; // Typical JFK-ATL flight time
     
-    const flightNumber = `WN${6300 + id * 10}`; // WN = Southwest style flight numbers
+    const flightNumber = `DL${6300 + id * 10}`; // Use DL prefix
     
     return {
       flightNumber,

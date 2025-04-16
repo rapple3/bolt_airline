@@ -109,14 +109,14 @@ export default function UserProfileCard({ profile: propProfile }: UserProfileCar
                             </p>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
                               <Calendar className="w-3 h-3" />
-                              {format(new Date(flight.date), 'MMM d, yyyy')}
+                              {flight.scheduledTime ? format(new Date(flight.scheduledTime), 'MMM d, yyyy') : 'Date N/A'}
                             </div>
                             {(() => {
                               const flightData = dataManager.getFlight(flight.flightNumber);
                               return flightData && (
                                 <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                                   <MapPin className="w-3 h-3" />
-                                  To: {flightData.arrival}
+                                  {flightData.departure} → {flightData.arrival}
                                 </div>
                               );
                             })()}

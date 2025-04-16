@@ -218,7 +218,7 @@ class DataManager {
       ...booking,
       flightNumber: newFlightNumber,
       seatInfo: newSeat,
-      date: new Date(newFlight.scheduledTime).toISOString()
+      scheduledTime: newFlight.scheduledTime
     };
     
     // Update the flight in user profile
@@ -231,7 +231,7 @@ class DataManager {
         ...this.userProfile.upcomingFlights[flightIndex],
         flightNumber: newFlightNumber,
         seatInfo: newSeat,
-        date: new Date(newFlight.scheduledTime).toISOString()
+        scheduledTime: newFlight.scheduledTime
       };
     }
     
@@ -272,7 +272,7 @@ class DataManager {
       customerId: this.userProfile.customerId,
       flightNumber,
       passengerName: this.userProfile.name,
-      date: new Date(flight.scheduledTime).toISOString().split('T')[0],
+      scheduledTime: flight.scheduledTime,
       status: 'confirmed',
       seatInfo: seat,
       checkedIn: false,

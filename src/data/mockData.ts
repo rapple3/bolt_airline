@@ -1,4 +1,6 @@
 import { FlightData, BookingData, LoyaltyData, UserProfile, SeatInfo } from '../types';
+import { mockUsers } from './mock/users';
+import { mockBookings as originalMockBookings } from './mock/bookings';
 
 // Cities with airport codes
 const airports = [
@@ -189,6 +191,20 @@ const customers = [
   },
 ];
 
+// Helper function to generate ISO string for a date X days from now
+const getDateXDaysFromNowISO = (days: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(14, 30, 0, 0); // Set a consistent time, e.g., 2:30 PM
+  return date.toISOString();
+};
+
+// Process original mock bookings to include scheduledTime ISO string
+export const mockBookings: BookingData[] = originalMockBookings.map(booking => ({
+  ...booking,
+  scheduledTime: getDateXDaysFromNowISO(parseInt(booking.date.split('-')[2]) % 30 || 5) // Generate based on old date
+}));
+
 // Generate a booking
 const generateBooking = (id: number, customerId: string, flight: FlightData): BookingData => {
   const seatClassOptions: ('economy' | 'comfortPlus' | 'first' | 'deltaOne')[] = ['economy', 'comfortPlus', 'first', 'deltaOne'];
@@ -232,20 +248,19 @@ const generateBooking = (id: number, customerId: string, flight: FlightData): Bo
   createdAtDate.setDate(createdAtDate.getDate() - daysAgo);
   
   const seatInfo = getRandomSeat(flight, seatClass);
-  const customer = customers.find(c => c.id === customerId) || customers[0];
   
   return {
-    bookingReference: `DL${String(id).padStart(5, '0')}`,
+    bookingReference: `DL${String(id).padStart(6, '0')}`,
     customerId,
     flightNumber: flight.flightNumber,
-    passengerName: customer.name,
-    date: formatShortDate(new Date(flight.scheduledTime)),
+    passengerName: customers.find(c => c.id === customerId)?.name || 'Unknown Passenger',
+    scheduledTime: flight.scheduledTime,
     status: 'confirmed',
-    seatInfo,
+    seatInfo: seatInfo,
     checkedIn: Math.random() > 0.8,
     class: seatClass,
-    createdAt: createdAtDate.toISOString(),
-    fareType,
+    fareType: fareType as 'refundable' | 'non-refundable',
+    createdAt: createdAtDate.toISOString()
   };
 };
 
@@ -384,7 +399,24 @@ export const mockFlights = initialData.flights;
 export const mockBookings = initialData.bookings;
 export const mockLoyalty = initialData.loyalty;
 export const mockUserProfiles = initialData.userProfiles;
-export const mockUserProfile = initialData.userProfiles[0];
+export const mockUserProfile: UserProfile = {
+  customerId: 'USR001',
+  name: 'Michael Thompson',
+  email: 'michael.thompson@example.com',
+  loyaltyPoints: 25600,
+  preferences: {
+    seat: 'aisle',
+    meal: 'vegetarian'
+  },
+  upcomingFlights: mockBookings.filter(b => b.customerId === 'USR001'),
+  activityLog: [
+    {
+      timestamp: getDateXDaysFromNowISO(-2),
+      action: 'Logged In',
+      details: { ipAddress: '192.168.1.100' }
+    }
+  ]
+};
 
 // Export airline policies
 export const airlinePolicies = {

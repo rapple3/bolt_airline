@@ -5,11 +5,11 @@ export interface BookingData {
   customerId: string;
   flightNumber: string;
   passengerName: string;
-  date: string;
-  status: 'confirmed' | 'cancelled' | 'completed';
-  seatInfo?: SeatInfo;
+  scheduledTime: string;
+  status: 'confirmed' | 'cancelled' | 'changed';
+  seatInfo: SeatInfo;
   checkedIn: boolean;
   class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
   createdAt?: string;
-  fareType?: 'basic' | 'main' | 'refundable';
+  fareType?: 'refundable' | 'non-refundable';
 } 
