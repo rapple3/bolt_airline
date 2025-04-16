@@ -32,6 +32,15 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
   const [selectedFlight, setSelectedFlight] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<'economy' | 'comfortPlus' | 'first' | 'deltaOne'>('economy');
   
+  // Safety check - if flights is null or undefined, render an empty div
+  if (!flights || !Array.isArray(flights) || flights.length === 0) {
+    return (
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+        No flights are currently available for this route and date.
+      </div>
+    );
+  }
+  
   const handleFlightSelect = (flightNumber: string) => {
     setSelectedFlight(flightNumber);
   };
@@ -58,8 +67,21 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
   return (
     <div className="mt-4 space-y-4">
       {flights.map((flight) => {
+        // Safety check for flight data
+        if (!flight || !flight.scheduledTime || !flight.seats) {
+          return null; // Skip invalid flights
+        }
+        
         const { date, time } = formatDateTime(flight.scheduledTime);
         const isSelected = selectedFlight === flight.flightNumber;
+        
+        // Make sure all seat arrays exist
+        const safeSeats = {
+          economy: Array.isArray(flight.seats?.economy) ? flight.seats.economy : [],
+          comfortPlus: Array.isArray(flight.seats?.comfortPlus) ? flight.seats.comfortPlus : [],
+          first: Array.isArray(flight.seats?.first) ? flight.seats.first : [],
+          deltaOne: Array.isArray(flight.seats?.deltaOne) ? flight.seats.deltaOne : []
+        };
         
         return (
           <div 
@@ -106,37 +128,37 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
             <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">Economy</p>
-                <p className="font-medium">{flight.seats.economy.length} seats</p>
+                <p className="font-medium">{safeSeats.economy.length} seats</p>
                 <div className="flex items-center justify-center mt-1 text-green-600">
                   <DollarSign className="w-3 h-3" />
-                  <span>{flight.seats.economy.length > 0 ? flight.seats.economy[0].price : 'N/A'}</span>
+                  <span>{safeSeats.economy.length > 0 ? safeSeats.economy[0].price : 'N/A'}</span>
                 </div>
               </div>
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">Comfort+</p>
-                <p className="font-medium">{flight.seats.comfortPlus.length} seats</p>
+                <p className="font-medium">{safeSeats.comfortPlus.length} seats</p>
                 <div className="flex items-center justify-center mt-1 text-green-600">
                   <DollarSign className="w-3 h-3" />
-                  <span>{flight.seats.comfortPlus.length > 0 ? flight.seats.comfortPlus[0].price : 'N/A'}</span>
+                  <span>{safeSeats.comfortPlus.length > 0 ? safeSeats.comfortPlus[0].price : 'N/A'}</span>
                 </div>
               </div>
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">First Class</p>
-                <p className="font-medium">{flight.seats.first.length} seats</p>
+                <p className="font-medium">{safeSeats.first.length} seats</p>
                 <div className="flex items-center justify-center mt-1 text-green-600">
                   <DollarSign className="w-3 h-3" />
-                  <span>{flight.seats.first.length > 0 ? flight.seats.first[0].price : 'N/A'}</span>
+                  <span>{safeSeats.first.length > 0 ? safeSeats.first[0].price : 'N/A'}</span>
                 </div>
               </div>
             </div>
             
-            {selectedFlight === flight.flightNumber && flight.seats.deltaOne.length > 0 && (
+            {selectedFlight === flight.flightNumber && safeSeats.deltaOne.length > 0 && (
               <div className="mt-2">
                 <div className="text-center p-2 bg-blue-50 rounded-lg">
                   <p className="text-blue-600">Delta One</p>
                   <div className="flex items-center justify-center mt-1 text-green-600">
                     <DollarSign className="w-3 h-3" />
-                    <span>{flight.seats.deltaOne.length > 0 ? flight.seats.deltaOne[0].price : 'N/A'}</span>
+                    <span>{safeSeats.deltaOne.length > 0 ? safeSeats.deltaOne[0].price : 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -153,6 +175,14 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
               const flight = flights.find(f => f.flightNumber === selectedFlight);
               if (!flight) return null;
               
+              // Create safe seat arrays
+              const safeSeats = {
+                economy: Array.isArray(flight.seats?.economy) ? flight.seats.economy : [],
+                comfortPlus: Array.isArray(flight.seats?.comfortPlus) ? flight.seats.comfortPlus : [],
+                first: Array.isArray(flight.seats?.first) ? flight.seats.first : [],
+                deltaOne: Array.isArray(flight.seats?.deltaOne) ? flight.seats.deltaOne : []
+              };
+              
               return (
                 <>
                   <button
@@ -166,7 +196,7 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                     <span>Economy</span>
                     <div className="ml-2 flex items-center">
                       <DollarSign className="w-3 h-3" />
-                      <span>{flight.seats.economy.length > 0 ? flight.seats.economy[0].price : 'N/A'}</span>
+                      <span>{safeSeats.economy.length > 0 ? safeSeats.economy[0].price : 'N/A'}</span>
                     </div>
                   </button>
                   <button
@@ -180,7 +210,7 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                     <span>Comfort+</span>
                     <div className="ml-2 flex items-center">
                       <DollarSign className="w-3 h-3" />
-                      <span>{flight.seats.comfortPlus.length > 0 ? flight.seats.comfortPlus[0].price : 'N/A'}</span>
+                      <span>{safeSeats.comfortPlus.length > 0 ? safeSeats.comfortPlus[0].price : 'N/A'}</span>
                     </div>
                   </button>
                   <button
@@ -194,10 +224,10 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                     <span>First Class</span>
                     <div className="ml-2 flex items-center">
                       <DollarSign className="w-3 h-3" />
-                      <span>{flight.seats.first.length > 0 ? flight.seats.first[0].price : 'N/A'}</span>
+                      <span>{safeSeats.first.length > 0 ? safeSeats.first[0].price : 'N/A'}</span>
                     </div>
                   </button>
-                  {flight.seats.deltaOne.length > 0 && (
+                  {safeSeats.deltaOne.length > 0 && (
                     <button
                       className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
                         selectedClass === 'deltaOne'
@@ -209,7 +239,7 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                       <span>Delta One</span>
                       <div className="ml-2 flex items-center">
                         <DollarSign className="w-3 h-3" />
-                        <span>{flight.seats.deltaOne.length > 0 ? flight.seats.deltaOne[0].price : 'N/A'}</span>
+                        <span>{safeSeats.deltaOne.length > 0 ? safeSeats.deltaOne[0].price : 'N/A'}</span>
                       </div>
                     </button>
                   )}

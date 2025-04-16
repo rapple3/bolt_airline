@@ -503,10 +503,12 @@ function updateContextWithUserInfo(userMessage: string, context: ConversationCon
 
 // Function to check if we have enough info to search flights
 function canSearchFlights(context: ConversationContext): boolean {
-  const { travelDetails } = context.requiredInfo;
-  return !!(travelDetails?.departureCity && 
-            travelDetails?.destinationCity && 
-            travelDetails?.departureDate);
+  const { travelDetails } = context.requiredInfo || {};
+  if (!travelDetails) return false;
+  
+  return Boolean(travelDetails.departureCity && 
+                 travelDetails.destinationCity && 
+                 travelDetails.departureDate);
 }
 
 export const getChatResponse = async (userMessage: string): Promise<{

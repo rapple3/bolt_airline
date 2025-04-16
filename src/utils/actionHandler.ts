@@ -310,18 +310,16 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
           return seats;
         };
         
-        // Create a new flight with these properties
-        const newFlight = {
+        // Create a new flight with these properties that match FlightData interface
+        const newFlight: FlightData = {
           flightNumber,
-          airline,
           departure: from,
           arrival: to,
           scheduledTime: flightDate.toISOString(),
           status: 'on time', // lowercase to match the FlightData interface
-          duration,
           aircraft: `Boeing ${737 + Math.floor(Math.random() * 40) * 10}`,
+          duration,
           gate: `${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.floor(Math.random() * 20) + 1}`,
-          terminal: Math.floor(Math.random() * 5) + 1,
           seats: {
             economy: generateSeats(economySeats, 'economy'),
             comfortPlus: generateSeats(comfortPlusSeats, 'comfortPlus'),
