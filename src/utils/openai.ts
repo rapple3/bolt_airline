@@ -536,13 +536,13 @@ function updateContextWithUserInfo(userMessage: string, context: ConversationCon
   }
   
   // Handle city responses
-  const cityMatch = userMessage.match(/from\s+([A-Za-z\s]+)/i);
-  if (cityMatch) {
+  const cityMatch = userMessage.match(/from\s+([A-Za-z\s]+?)(?:\s+to|\s*$)/i);
+  if (cityMatch && cityMatch[1].trim().length > 2) {
     context.requiredInfo.travelDetails.departureCity = cityMatch[1].trim();
   }
   
-  const toMatch = userMessage.match(/to\s+([A-Za-z\s]+)/i);
-  if (toMatch) {
+  const toMatch = userMessage.match(/to\s+([A-Za-z\s]+?)(?:\s+from|\s*$)/i);
+  if (toMatch && toMatch[1].trim().length > 2) {
     context.requiredInfo.travelDetails.destinationCity = toMatch[1].trim();
   }
   
@@ -560,9 +560,11 @@ function canSearchFlights(context: ConversationContext): boolean {
   const { travelDetails } = context.requiredInfo || {};
   if (!travelDetails) return false;
   
-  return Boolean(travelDetails.departureCity && 
-                 travelDetails.destinationCity && 
-                 travelDetails.departureDate);
+  const hasDepartureCity = Boolean(travelDetails.departureCity && travelDetails.departureCity.trim().length > 2);
+  const hasDestinationCity = Boolean(travelDetails.destinationCity && travelDetails.destinationCity.trim().length > 2);
+  const hasDate = Boolean(travelDetails.departureDate);
+  
+  return hasDepartureCity && hasDestinationCity && hasDate;
 }
 
 export const getChatResponse = async (userMessage: string): Promise<{

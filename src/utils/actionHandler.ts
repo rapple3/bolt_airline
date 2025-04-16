@@ -117,10 +117,19 @@ export const executeAction = async (
 const searchFlights = (params: Record<string, string>): ActionResult => {
   const { from, to, date } = params;
   
-  if (!from || !to) {
+  // Add stronger validation to prevent searches with invalid or incomplete parameters
+  if (!from || !to || from.trim().length < 3 || to.trim().length < 3) {
     return {
       success: false,
-      message: 'Missing required parameters: from and to cities'
+      message: 'Missing or invalid parameters: from and to cities must be at least 3 characters'
+    };
+  }
+  
+  // Ensure we're not searching with the same departure and destination
+  if (from.trim().toLowerCase() === to.trim().toLowerCase()) {
+    return {
+      success: false,
+      message: 'Departure and destination cities cannot be the same'
     };
   }
   
@@ -251,7 +260,7 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
       const generatedFlights: any[] = [];
       
       // Generate flights distributed throughout the day
-      const airlines = ['AA', 'DL', 'UA', 'B6', 'WN', 'AS'];
+      const airlines = ['DL']; // Use only Delta prefix
       const departureHours = [7, 9, 11, 13, 15, 17, 19];
       
       for (let i = 0; i < numFlights; i++) {
@@ -267,8 +276,8 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
         const durationMinutes = Math.floor(Math.random() * 60);
         const duration = `${durationHours}h ${durationMinutes}m`;
         
-        // Select an airline and create flight number
-        const airline = airlines[Math.floor(Math.random() * airlines.length)];
+        // Select an airline and create flight number (Always DL)
+        const airline = 'DL';
         const flightNumber = `${airline}${1000 + Math.floor(Math.random() * 9000)}`;
         
         // Generate a mocked flight with economy, comfortPlus, first, and deltaOne seats
