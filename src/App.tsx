@@ -340,21 +340,31 @@ function App() {
       }
     };
 
-    // Update messages state first
+    console.log('[handleConfirmBooking] Before setMessages', { currentMessages: messages });
+
+    // Update messages state first, adding both debug and confirmation
     setMessages(prev => {
+      console.log('[handleConfirmBooking] Inside setMessages - prev state:', prev);
       const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           const { pendingConfirmation, ...rest } = msg;
-          return rest;
+          return rest; // Remove pending confirmation from original message
         }
         return msg;
-      }).concat(debugMessage).concat(confirmationMessage);
-
-      setCurrentUser(dataManager.getUserProfile());
-      return updatedMessages;
+      });
+      const newState = [...updatedMessages, debugMessage, confirmationMessage];
+      console.log('[handleConfirmBooking] Inside setMessages - new state:', newState);
+      // Add both new messages at once
+      return newState; 
     });
 
-    // ---> NEW: Trigger AI response after UI update <---
+    // Log state *after* the update (Note: this might log the state before the update completes due to async nature of setState)
+    console.log('[handleConfirmBooking] After setMessages call (may not reflect immediate update)', { currentMessages: messages });
+
+    // Update the user profile state *after* message state is likely updated
+    setCurrentUser(dataManager.getUserProfile());
+
+    // ---> Trigger AI response after UI update <---
     setIsLoading(true); // Show loading indicator
     try {
       // Send an internal prompt to make the AI process the update

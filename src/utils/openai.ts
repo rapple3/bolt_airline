@@ -54,7 +54,7 @@ const conversationContext: ConversationContext = {
 };
 
 // System prompt that includes instructions for action format
-const SYSTEM_PROMPT = `You are a friendly and professional AI assistant for Delta Airlines. Your name is Delta Assistant. You are committed to helping customers have the best travel experience possible with Delta.
+const SYSTEM_PROMPT = `You are a friendly and professional AI assistant for Delta Air Lines. Your name is Delta Assistant. You are committed to helping customers have the best travel experience possible with Delta.
 
 PERSONALITY TRAITS:
 - Professional and reliable: Reflect Delta's reputation for operational excellence
@@ -562,6 +562,7 @@ export const getChatResponse = async (userMessage: string): Promise<{
   content: string;
   requiresHandoff: boolean;
   actionResult?: any;
+  pendingConfirmation?: any;
 }> => {
   try {
     // Update context with any information from the user's message
@@ -582,7 +583,8 @@ export const getChatResponse = async (userMessage: string): Promise<{
       
       return {
         content: `${acknowledgment}${nextQuestion}`,
-        requiresHandoff: false
+        requiresHandoff: false,
+        pendingConfirmation: null
       };
     }
     
@@ -668,14 +670,16 @@ export const getChatResponse = async (userMessage: string): Promise<{
           return {
             content: response + nextQuestion,
             requiresHandoff: false,
-            actionResult: searchResult
+            actionResult: searchResult,
+            pendingConfirmation: null
           };
         }
         
         return {
           content: response + "Would you like me to help you book any of these flights?",
           requiresHandoff: false,
-          actionResult: searchResult
+          actionResult: searchResult,
+          pendingConfirmation: null
         };
       } else {
         // Reset the search parameters so user can try again
@@ -687,7 +691,8 @@ export const getChatResponse = async (userMessage: string): Promise<{
         return {
           content: `I apologize, but I couldn't find any flights from ${departureCity} to ${destinationCity} for ${departureDate}. Would you like to try a different date? I can help you find available options.`,
           requiresHandoff: false,
-          actionResult: searchResult
+          actionResult: searchResult,
+          pendingConfirmation: null
         };
       }
     }
@@ -707,7 +712,8 @@ export const getChatResponse = async (userMessage: string): Promise<{
       return {
         content: parsedResponse.content,
         requiresHandoff: false,
-        actionResult
+        actionResult,
+        pendingConfirmation: null
       };
     }
     
@@ -715,14 +721,16 @@ export const getChatResponse = async (userMessage: string): Promise<{
     messageHistory.push({ role: 'assistant', content: apiResponse.data.content });
     return {
       content: apiResponse.data.content,
-      requiresHandoff: false
+      requiresHandoff: false,
+      pendingConfirmation: null
     };
     
   } catch (error) {
     console.error('Error in getChatResponse:', error);
     return {
       content: "I apologize, but I'm having trouble processing your request right now. Could you please try again?",
-      requiresHandoff: true
+      requiresHandoff: true,
+      pendingConfirmation: null
     };
   }
 };
