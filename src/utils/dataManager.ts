@@ -1,4 +1,4 @@
-import { mockBookings, mockUserProfile } from '../data/mockData';
+import { mockBookings, mockUserProfiles, mockUserProfile as fallbackUserProfile } from '../data/mockData';
 import { generateFlights } from '../data/mock/flights';
 import { FlightData, BookingData, UserProfile, SeatInfo } from '../types';
 
@@ -8,114 +8,83 @@ type Subscriber = () => void;
 class DataManager {
   private flights: FlightData[] = [];
   private bookings: BookingData[] = [];
-  private userProfile: UserProfile = { ...mockUserProfile };
+  private userProfile!: UserProfile;
   private subscribers: Subscriber[] = [];
-  private lastFlightUpdate: string = '';
   private currentDate: Date;
 
   constructor() {
-    // Initialize current date from storage temporarily
-    const storedDate = this.loadFromStorage<string>('currentDate');
-    this.currentDate = storedDate ? new Date(storedDate) : new Date();
+    console.log('Initializing DataManager with fresh mock data...');
     
-    // Fetch current date from internet
-    this.fetchCurrentDateFromAPI().then(date => {
-      if (date) {
-        this.currentDate = date;
-        this.saveToStorage();
-        this.notifySubscribers();
-      }
-    }).catch(error => {
-      console.error('Error fetching current date:', error);
-    });
+    // Always use browser's current date
+    this.currentDate = new Date();
     
-    this.lastFlightUpdate = this.loadFromStorage('lastFlightUpdate') || '';
+    // Always generate fresh flights on load
+    this.flights = generateFlights(20, this.currentDate); // Pass current date for consistency
     
-    // Check if we need to refresh flights on initial load
-    if (this.shouldRefreshFlights()) {
-      this.refreshFlights();
+    // Always start with the base mock bookings
+    this.bookings = [...mockBookings]; 
+
+    // --- Set Specific Default User --- 
+    const defaultUserId = 'CUST004'; // Change this ID to your desired default user (e.g., Maria Garcia)
+    let foundProfile = mockUserProfiles.find(p => p.customerId === defaultUserId);
+
+    if (foundProfile) {
+        console.log(`Setting default user to: ${foundProfile.name} (${defaultUserId})`);
+        this.userProfile = { 
+            ...foundProfile, 
+            // Ensure upcomingFlights are correctly filtered from the *current* bookings list
+            upcomingFlights: this.bookings.filter(b => b.customerId === defaultUserId && b.status !== 'cancelled')
+        };
     } else {
-      // Load existing flights
-      this.flights = this.loadFromStorage('flights') || generateFlights(20);
+        // Fallback if the specific ID wasn't found in mockUserProfiles
+        console.warn(`Default user ID ${defaultUserId} not found in mockUserProfiles. Falling back.`);
+        this.userProfile = { 
+          ...fallbackUserProfile, // Use the imported fallback 
+          upcomingFlights: this.bookings.filter(b => b.customerId === fallbackUserProfile.customerId && b.status !== 'cancelled')
+        };
     }
+    // --- End Set Specific Default User ---
     
-    // Load other data
-    this.bookings = this.loadFromStorage('bookings') || [...mockBookings];
-    this.userProfile = this.loadFromStorage('userProfile') || { ...mockUserProfile };
-    
-    // Save initial data if it doesn't exist
-    this.saveToStorage();
+    console.log('DataManager initialized:', {
+      flights: this.flights.length,
+      bookings: this.bookings.length,
+      user: this.userProfile.name
+    });
+
+    // Note: We are no longer loading from or saving initial state to localStorage here
+    // Saving will only happen if specific methods like createBooking/cancelBooking are called during the session
   }
 
-  // Add method to fetch current date from WorldTimeAPI
-  private async fetchCurrentDateFromAPI(): Promise<Date | null> {
-    try {
-      const response = await fetch('https://worldtimeapi.org/api/timezone/America/New_York');
-      if (!response.ok) {
-        throw new Error('Failed to fetch time from API');
-      }
-      const data = await response.json();
-      // Add 2 years to the current date to make it 2025
-      const date = new Date(data.datetime);
-      date.setFullYear(date.getFullYear());
-      return date;
-    } catch (error) {
-      console.error('Error fetching current date from API:', error);
-      return null;
-    }
-  }
+  // Remove date fetching and related methods
+  // private async fetchCurrentDateFromAPI(): Promise<Date | null> { ... }
+  // private shouldRefreshFlights(): boolean { ... }
+  // private refreshFlights(): void { ... }
 
-  // Add getter for current date
-  getCurrentDate(): Date {
-    return new Date(this.currentDate);
-  }
-
-  // Add method to set current date
-  setCurrentDate(date: Date): void {
-    this.currentDate = new Date(date);
-    localStorage.setItem('airline_app_currentDate', this.currentDate.toISOString());
-    this.notifySubscribers();
-  }
-
-  private shouldRefreshFlights(): boolean {
-    const today = this.currentDate.toISOString().split('T')[0];
-    return this.lastFlightUpdate !== today;
-  }
-
-  private refreshFlights(): void {
-    console.log('Refreshing flights for new day...');
-    const generatedFlights = generateFlights(20);
-    this.flights = generatedFlights;
-    this.lastFlightUpdate = this.currentDate.toISOString().split('T')[0];
-    localStorage.setItem('airline_app_lastFlightUpdate', this.lastFlightUpdate);
-    this.saveToStorage();
-    this.notifySubscribers();
-  }
-
-  // Storage methods
+  // Keep storage methods for potential in-session updates, but don't rely on them for load
   private loadFromStorage<T>(key: string): T | null {
+    // This could be kept for potential future use, but isn't called by the simplified constructor
     try {
       const data = localStorage.getItem(`airline_app_${key}`);
       return data ? JSON.parse(data) : null;
     } catch (e) {
-      console.error(`Error loading ${key} from storage:`, e);
+      console.warn(`Warning: Error loading ${key} from storage (might be corrupted):`, e);
+      localStorage.removeItem(`airline_app_${key}`); // Clear corrupted item
       return null;
     }
   }
 
   private saveToStorage(): void {
     try {
-      localStorage.setItem('airline_app_flights', JSON.stringify(this.flights));
+      // Only save data that might change during the session
       localStorage.setItem('airline_app_bookings', JSON.stringify(this.bookings));
       localStorage.setItem('airline_app_userProfile', JSON.stringify(this.userProfile));
-      localStorage.setItem('airline_app_lastFlightUpdate', this.lastFlightUpdate);
-      localStorage.setItem('airline_app_currentDate', this.currentDate.toISOString());
+      // No longer saving flights, date, or lastUpdate as they reset on load
     } catch (e) {
       console.error('Error saving to storage:', e);
     }
   }
 
-  // Subscriber pattern for UI updates
+  // Subscriber pattern remains the same
   subscribe(callback: Subscriber): () => void {
     this.subscribers.push(callback);
     return () => {
@@ -127,22 +96,34 @@ class DataManager {
     this.subscribers.forEach(callback => callback());
   }
 
-  // Data access methods with refresh check
+  // --- Data access methods remain largely the same --- 
+  
+  getCurrentDate(): Date {
+    // Return a copy to prevent external modification
+    return new Date(this.currentDate); 
+  }
+
+  setCurrentDate(date: Date): void {
+    // Allow setting date for testing/simulation during the session
+    console.warn('DataManager: Setting current date manually. This will not persist.');
+    this.currentDate = new Date(date);
+    // Maybe refresh flights based on the new date? Or assume manual refresh via resetData?
+    // For simplicity, let's just notify subscribers for now.
+    this.notifySubscribers();
+  }
+
   getFlights(): FlightData[] {
-    if (this.shouldRefreshFlights()) {
-      this.refreshFlights();
-    }
+    // No longer needs refresh check on access
     return this.flights;
   }
 
   getFlight(flightNumber: string): FlightData | undefined {
-    if (this.shouldRefreshFlights()) {
-      this.refreshFlights();
-    }
+    // No longer needs refresh check on access
     return this.flights.find(f => f.flightNumber === flightNumber);
   }
 
   getBookings(): BookingData[] {
+    // Filter bookings for the *currently set* user profile
     return this.bookings.filter(b => b.customerId === this.userProfile.customerId);
   }
 
@@ -151,50 +132,50 @@ class DataManager {
   }
 
   setUserProfile(profile: UserProfile): void {
+    console.log(`DataManager: Setting user profile to ${profile.name} (${profile.customerId})`);
     this.userProfile = profile;
-    this.saveToStorage();
+    // Update upcoming flights in the profile to match the main bookings list for this user
+    this.userProfile.upcomingFlights = this.bookings.filter(b => b.customerId === profile.customerId);
+    this.saveToStorage(); // Save profile changes for the session
     this.notifySubscribers();
   }
 
-  // Data modification methods
+  // --- Data modification methods remain largely the same --- 
+  // They will modify the in-memory data and call saveToStorage/notifySubscribers
+  
   cancelBooking(bookingReference: string): boolean {
     const bookingIndex = this.bookings.findIndex(b => 
       b.bookingReference === bookingReference && 
       b.customerId === this.userProfile.customerId
     );
     
-    if (bookingIndex === -1) return false;
+    if (bookingIndex === -1) {
+      console.error(`DataManager: Cannot cancel booking ${bookingReference}. Not found for user ${this.userProfile.customerId}.`);
+      return false;
+    }
     
-    // Update the booking status
+    // Update the booking status instead of removing
+    console.log(`DataManager: Cancelling booking ${bookingReference}`);
     this.bookings[bookingIndex] = {
       ...this.bookings[bookingIndex],
       status: 'cancelled'
     };
     
-    // Update user profile's upcoming flights with new reference
+    // Update user profile's upcoming flights array reference to trigger UI update
     this.userProfile = {
       ...this.userProfile,
-      upcomingFlights: [...this.userProfile.upcomingFlights.filter(
-        flight => flight.bookingReference !== bookingReference
-      )]
+      upcomingFlights: this.bookings.filter(
+        flight => flight.customerId === this.userProfile.customerId && flight.status !== 'cancelled'
+      )
     };
     
-    // Log the action
     this.logAction('Cancelled Booking', { bookingReference });
-    
-    // Save changes and notify UI
     this.saveToStorage();
     this.notifySubscribers();
-    
     return true;
   }
 
   changeFlight(bookingReference: string, newFlightNumber: string): boolean {
-    // Check if flights need refresh before changing
-    if (this.shouldRefreshFlights()) {
-      this.refreshFlights();
-    }
-
     const bookingIndex = this.bookings.findIndex(b => 
       b.bookingReference === bookingReference && 
       b.customerId === this.userProfile.customerId
@@ -207,94 +188,87 @@ class DataManager {
     
     if (!newFlight) return false;
     
-    // Find an available seat in the same class
+    // Ensure seat class exists and find available seat
+    if (!newFlight.seats[booking.class]) return false; // Check if class exists
     const availableSeats = newFlight.seats[booking.class].filter(seat => seat.status === 'available');
     if (availableSeats.length === 0) return false;
     
     const newSeat: SeatInfo = { ...availableSeats[0], status: 'occupied' as const };
     
-    // Update the booking
+    console.log(`DataManager: Changing booking ${bookingReference} to flight ${newFlightNumber}`);
     this.bookings[bookingIndex] = {
       ...booking,
       flightNumber: newFlightNumber,
       seatInfo: newSeat,
-      scheduledTime: newFlight.scheduledTime
+      scheduledTime: newFlight.scheduledTime 
     };
     
-    // Update the flight in user profile
-    const flightIndex = this.userProfile.upcomingFlights.findIndex(
-      f => f.bookingReference === bookingReference
-    );
+    // Update user profile's upcoming flights array reference
+    this.userProfile = {
+        ...this.userProfile,
+        upcomingFlights: this.bookings.filter(f => f.customerId === this.userProfile.customerId && f.status !== 'cancelled')
+    };
     
-    if (flightIndex !== -1) {
-      this.userProfile.upcomingFlights[flightIndex] = {
-        ...this.userProfile.upcomingFlights[flightIndex],
-        flightNumber: newFlightNumber,
-        seatInfo: newSeat,
-        scheduledTime: newFlight.scheduledTime
-      };
-    }
-    
-    // Log the action
     this.logAction('Changed Flight', { bookingReference, newFlightNumber });
-    
-    // Save changes and notify UI
     this.saveToStorage();
     this.notifySubscribers();
-    
     return true;
   }
   
   createBooking(flightNumber: string, seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne'): boolean {
-    // Check if flights need refresh before booking
-    if (this.shouldRefreshFlights()) {
-      this.refreshFlights();
-    }
-
     const flight = this.flights.find(f => f.flightNumber === flightNumber);
     if (!flight) return false;
     
-    // Check if the selected class exists on this flight
-    if ((seatClass === 'deltaOne' && flight.seats.deltaOne.length === 0) ||
-        (seatClass === 'first' && flight.seats.first.length === 0)) {
-      return false;
+    // Check if the selected class exists on this flight and has seats
+    if (!flight.seats[seatClass] || flight.seats[seatClass].length === 0) {
+        console.error(`DataManager: Cannot book class ${seatClass} for flight ${flightNumber}. Class not offered or no seats.`);
+        return false;
     }
     
     // Find an available seat
     const availableSeats = flight.seats[seatClass].filter(seat => seat.status === 'available');
-    if (availableSeats.length === 0) return false;
+    if (availableSeats.length === 0) {
+      console.warn(`DataManager: No available seats in ${seatClass} for flight ${flightNumber}.`);
+      return false;
+    }
     
-    const seat: SeatInfo = { ...availableSeats[0], status: 'occupied' as const };
+    // Mark seat as occupied (in the main flights array for consistency during session)
+    const seatToBook = availableSeats[0];
+    const seatIndex = flight.seats[seatClass].findIndex(s => s.seatNumber === seatToBook.seatNumber);
+    if (seatIndex !== -1) {
+        flight.seats[seatClass][seatIndex].status = 'occupied';
+    } else {
+        console.error('DataManager: Could not find seat to mark as occupied. Booking aborted.');
+        return false;
+    }
+
+    const seatInfoForBooking: SeatInfo = { ...seatToBook, status: 'occupied' };
     
     // Create new booking
     const newBooking: BookingData = {
-      bookingReference: `DL${String(this.bookings.length + 1).padStart(5, '0')}`,
+      bookingReference: `DL${String(Date.now()).slice(-6)}`, // Use timestamp suffix for uniqueness
       customerId: this.userProfile.customerId,
       flightNumber,
       passengerName: this.userProfile.name,
       scheduledTime: flight.scheduledTime,
       status: 'confirmed',
-      seatInfo: seat,
+      seatInfo: seatInfoForBooking,
       checkedIn: false,
       class: seatClass
     };
     
-    // Add booking to list
+    console.log(`DataManager: Creating new booking ${newBooking.bookingReference} for flight ${flightNumber}`);
     this.bookings.push(newBooking);
     
-    // Update user profile
+    // Update user profile's upcoming flights array reference
     this.userProfile = {
       ...this.userProfile,
-      upcomingFlights: [...this.userProfile.upcomingFlights, newBooking]
+      upcomingFlights: this.bookings.filter(b => b.customerId === this.userProfile.customerId && b.status !== 'cancelled')
     };
     
-    // Log the action
-    this.logAction('Booked Flight', { flightNumber, seatClass, seatNumber: seat.seatNumber });
-    
-    // Save changes and notify UI
+    this.logAction('Booked Flight', { flightNumber, seatClass, seatNumber: seatInfoForBooking.seatNumber });
     this.saveToStorage();
     this.notifySubscribers();
-    
     return true;
   }
   
@@ -311,105 +285,117 @@ class DataManager {
     
     if (!flight || !booking.seatInfo) return false;
     
-    // Find the new seat across all seat classes
+    // Find the new seat and its class
     let newSeat: SeatInfo | null = null;
-    for (const seatClass of ['economy', 'comfortPlus', 'first', 'deltaOne'] as const) {
-      const seat = flight.seats[seatClass].find(s => s.seatNumber === newSeatNumber);
+    let newSeatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne' | null = null;
+    for (const sc of ['economy', 'comfortPlus', 'first', 'deltaOne'] as const) {
+      const seat = flight.seats[sc]?.find(s => s.seatNumber === newSeatNumber);
       if (seat && seat.status === 'available') {
         newSeat = { ...seat, status: 'occupied' as const };
-        
-        // Mark the old seat as available
-        const oldSeatClass = booking.class;
-        const oldSeatIndex = flight.seats[oldSeatClass].findIndex(
-          s => s.seatNumber === booking.seatInfo!.seatNumber
-        );
-        
-        if (oldSeatIndex !== -1) {
-          flight.seats[oldSeatClass][oldSeatIndex] = {
-            ...flight.seats[oldSeatClass][oldSeatIndex],
-            status: 'available' as const
-          };
-        }
-        
-        // Update the booking
-        this.bookings[bookingIndex] = {
-          ...booking,
-          seatInfo: newSeat,
-          class: seatClass
-        };
-        
-        // Update in user profile
-        const flightIndex = this.userProfile.upcomingFlights.findIndex(
-          f => f.bookingReference === bookingReference
-        );
-        
-        if (flightIndex !== -1) {
-          this.userProfile.upcomingFlights[flightIndex] = {
-            ...this.userProfile.upcomingFlights[flightIndex],
-            seatInfo: newSeat,
-            class: seatClass
-          };
-        }
-        
-        // Log the action
-        this.logAction('Changed Seat', { 
-          bookingReference, 
-          oldSeat: booking.seatInfo.seatNumber, 
-          newSeat: newSeatNumber 
-        });
-        
-        // Save changes and notify UI
-        this.saveToStorage();
-        this.notifySubscribers();
-        
-        return true;
+        newSeatClass = sc;
+        break;
       }
     }
+
+    if (!newSeat || !newSeatClass) {
+        console.warn(`DataManager: Seat ${newSeatNumber} not found or not available for flight ${flight.flightNumber}.`);
+        return false;
+    }
+        
+    // Mark the old seat as available
+    const oldSeatClass = booking.class;
+    const oldSeatIndex = flight.seats[oldSeatClass]?.findIndex(
+        s => s.seatNumber === booking.seatInfo!.seatNumber
+    );
     
-    return false;
+    if (oldSeatIndex !== -1 && flight.seats[oldSeatClass]) {
+        flight.seats[oldSeatClass][oldSeatIndex].status = 'available';
+    } else {
+        console.warn(`DataManager: Could not find old seat ${booking.seatInfo?.seatNumber} to mark as available.`);
+    }
+    
+    // Mark the new seat as occupied (in the main flights array)
+    const newSeatIndex = flight.seats[newSeatClass].findIndex(s => s.seatNumber === newSeatNumber);
+    if (newSeatIndex !== -1) {
+        flight.seats[newSeatClass][newSeatIndex].status = 'occupied';
+    } else {
+        // Should not happen if found above, but good to check
+        console.error(`DataManager: Could not find new seat ${newSeatNumber} to mark as occupied. Change aborted.`);
+        // Revert old seat status if possible
+        if (oldSeatIndex !== -1 && flight.seats[oldSeatClass]) {
+             flight.seats[oldSeatClass][oldSeatIndex].status = 'occupied';
+        }
+        return false;
+    }
+
+    console.log(`DataManager: Changing seat for booking ${bookingReference} to ${newSeatNumber}`);
+    // Update the booking record
+    this.bookings[bookingIndex] = {
+        ...booking,
+        seatInfo: newSeat,
+        class: newSeatClass
+    };
+    
+    // Update user profile's upcoming flights array reference
+    this.userProfile = {
+        ...this.userProfile,
+        upcomingFlights: this.bookings.filter(f => f.customerId === this.userProfile.customerId && f.status !== 'cancelled')
+    };
+    
+    this.logAction('Changed Seat', { 
+        bookingReference, 
+        oldSeat: booking.seatInfo.seatNumber, 
+        newSeat: newSeatNumber 
+    });
+    
+    this.saveToStorage();
+    this.notifySubscribers();
+    return true;
   }
   
   logAction(action: string, details: Record<string, any>): void {
-    // Add activity to log
     if (!this.userProfile.activityLog) {
       this.userProfile.activityLog = [];
     }
-    
     this.userProfile.activityLog.push({
       timestamp: new Date().toISOString(),
       action,
       details
     });
+    // No need to save to storage just for logging if persistence isn't required
+    // this.saveToStorage(); 
   }
   
   resetData(): void {
-    // Generate fresh mock flights including specific route data
-    const generatedFlights = generateFlights(20);
-    
-    // Reset to mock data
-    this.flights = generatedFlights;
+    console.log('DataManager: Resetting data to initial mock state...');
+    this.currentDate = new Date();
+    this.flights = generateFlights(20, this.currentDate);
     this.bookings = [...mockBookings];
     
-    // Keep the current user ID when resetting to maintain chosen user
-    const currentUserId = this.userProfile.customerId;
-    // Find matching user in mock bookings or fall back to the default
-    const matchingUser = mockBookings.find(booking => booking.customerId === currentUserId);
-    if (matchingUser) {
-      // If current user exists in the mock data, use the corresponding booking's customer
-      this.userProfile = { ...mockUserProfile };
+    // --- Set Specific Default User on Reset --- 
+    const defaultUserId = 'CUST004'; // Use the same default ID
+    let foundProfile = mockUserProfiles.find(p => p.customerId === defaultUserId);
+
+    if (foundProfile) {
+        console.log(`Resetting default user to: ${foundProfile.name} (${defaultUserId})`);
+        this.userProfile = { 
+            ...foundProfile, 
+            upcomingFlights: this.bookings.filter(b => b.customerId === defaultUserId && b.status !== 'cancelled')
+        };
     } else {
-      // Otherwise, use the default user profile
-      this.userProfile = { ...mockUserProfile };
+        console.warn(`Default user ID ${defaultUserId} not found in mockUserProfiles during reset. Falling back.`);
+        this.userProfile = { 
+          ...fallbackUserProfile, 
+          upcomingFlights: this.bookings.filter(b => b.customerId === fallbackUserProfile.customerId && b.status !== 'cancelled')
+        };
     }
-    
-    // Clear storage and save new data
-    localStorage.removeItem('airline_app_flights');
-    localStorage.removeItem('airline_app_bookings');
-    localStorage.removeItem('airline_app_userProfile');
-    
-    this.saveToStorage();
+    // --- End Set Specific Default User on Reset ---
+
     this.notifySubscribers();
   }
+
+  // Other methods like checkIn, trackBaggage remain similar, 
+  // but their persistence via saveToStorage is only for the current session.
 
   checkIn(bookingReference: string): boolean {
     const bookingIndex = this.bookings.findIndex(b => 
@@ -419,19 +405,15 @@ class DataManager {
     
     if (bookingIndex === -1) return false;
     
-    // Update the booking status
+    console.log(`DataManager: Checking in booking ${bookingReference}`);
     this.bookings[bookingIndex] = {
       ...this.bookings[bookingIndex],
       checkedIn: true
     };
     
-    // Log the action
     this.logAction('Checked In', { bookingReference });
-    
-    // Save changes and notify UI
-    this.saveToStorage();
+    this.saveToStorage(); // Save check-in status for the session
     this.notifySubscribers();
-    
     return true;
   }
 
@@ -443,32 +425,29 @@ class DataManager {
     
     if (!booking) return {};
     
-    // Log the action
     this.logAction('Tracked Baggage', { bookingReference });
-    
     return booking;
   }
 
   setFlights(flights: FlightData[]): void {
+    // This might be used by fallback generation, keep it for session consistency
+    console.log('DataManager: Manually setting flights data.');
     this.flights = flights;
-    this.saveToStorage();
+    // No saveToStorage needed as flights reset on load
     this.notifySubscribers();
   }
 
-  // Refresh flights for a specific date
   refreshFlightsForDate(date: Date): void {
-    // Generate new flights for the specified date
+    // Generate new flights for the specified date for the *session*
+    console.log(`DataManager: Refreshing flights for date ${date.toISOString().split('T')[0]}`);
     const newFlights = generateFlights(20, date);
     
-    // Keep existing bookings' flights
+    // Keep existing bookings' flights (to avoid losing flight details for active bookings)
     const bookedFlightNumbers = new Set(this.bookings.map(b => b.flightNumber));
     const existingBookedFlights = this.flights.filter(f => bookedFlightNumbers.has(f.flightNumber));
     
     // Combine booked flights with new flights
     this.flights = [...existingBookedFlights, ...newFlights];
-    
-    // Save changes and notify UI
-    this.saveToStorage();
     this.notifySubscribers();
   }
 }
