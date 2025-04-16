@@ -189,6 +189,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
+    console.log("[handleConfirmBooking] Function finished executing.");
   };
 
   // Handle reset data button click
@@ -255,6 +256,7 @@ function App() {
     );
     
     if (!pendingMessage?.pendingConfirmation || !pendingMessage.pendingConfirmation.flightDetails) {
+      console.error("[handleConfirmBooking] Error: Could not find pending confirmation message or flight details.");
       return;
     }
     
