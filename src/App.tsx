@@ -291,11 +291,33 @@ function App() {
     const userBookings = dataManager.getBookings();
     const bookingId = userBookings.length > 0 ? userBookings[userBookings.length - 1].bookingReference : 'Unknown';
     
-    // Add confirmation message
+    // Format the flight date for better readability
+    const flightDate = new Date(flightDetails.scheduledTime);
+    const formattedDate = flightDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    const formattedTime = flightDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Add confirmation message with detailed information
     const confirmationMessage: Message = {
       id: Date.now().toString(),
       type: 'bot',
-      content: `Your booking for flight ${flightNumber} has been confirmed! Your booking reference is ${bookingId}. Is there anything else I can help you with today?`,
+      content: `Great news! I've booked your flight from ${flightDetails.departure} to ${flightDetails.arrival}.
+
+Flight details:
+• Flight number: ${flightNumber}
+• Date: ${formattedDate} at ${formattedTime}
+• Class: ${validClass.charAt(0).toUpperCase() + validClass.slice(1)}
+• Booking reference: ${bookingId}
+
+Your booking is confirmed and has been added to your profile. Is there anything else I can help you with today?`,
       timestamp: new Date(),
       actionResult: {
         success: true,
@@ -311,6 +333,9 @@ function App() {
         }
       }
     };
+    
+    // Force refresh the current user data to ensure the profile card updates
+    setCurrentUser(dataManager.getUserProfile());
     
     // Update messages and remove pending confirmation from the previous message
     setMessages(prev => {
@@ -380,6 +405,9 @@ function App() {
       ]);
       return;
     }
+    
+    // Force refresh the current user data to ensure the profile card updates
+    setCurrentUser(dataManager.getUserProfile());
     
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -466,6 +494,9 @@ function App() {
       ]);
       return;
     }
+    
+    // Force refresh the current user data to ensure the profile card updates
+    setCurrentUser(dataManager.getUserProfile());
     
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -559,6 +590,9 @@ function App() {
       
       // Use the current class if no upgrade was selected
       const displayClass = newClass || pendingMessage.pendingConfirmation.targetClass || 'economy';
+      
+      // Force refresh the current user data to ensure the profile card updates
+      setCurrentUser(dataManager.getUserProfile());
       
       // Add confirmation message
       const confirmationMessage: Message = {
