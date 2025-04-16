@@ -251,6 +251,7 @@ function App() {
   // Handler for flight booking confirmation
   const handleConfirmBooking = async (flightNumber: string, seatClass: string) => {
     // Find the message with the pending confirmation
+    console.log('[handleConfirmBooking] Checking messages state:', messages);
     const pendingMessage = messages.find(
       m => m.type === 'bot' && m.pendingConfirmation?.type === 'BOOK_FLIGHT'
     );
