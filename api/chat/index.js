@@ -169,6 +169,9 @@ export default async function handler(req, res) {
       const paramsString = actionMatch[2].trim();
       
       if (actionType === 'CANCEL_BOOKING') {
+        console.log('[Backend Check] Received CANCEL_BOOKING action from AI.');
+        console.log('[Backend Check] Context Bookings Received:', JSON.stringify(contextData?.bookings));
+        
         const paramMatches = paramsString.matchAll(/([A-Za-z_]+)="([^"]*)"/g);
         let refFromAI = null;
         for (const match of paramMatches) {
@@ -177,25 +180,27 @@ export default async function handler(req, res) {
             break;
           }
         }
+        console.log(`[Backend Check] Booking Reference from AI: ${refFromAI}`);
         
         if (refFromAI && contextData?.bookings && Array.isArray(contextData.bookings)) {
           // Check if the reference from AI exists in the *actual* bookings sent in context
           const bookingExists = contextData.bookings.some(b => b.bookingReference === refFromAI);
+          console.log(`[Backend Check] Does ref ${refFromAI} exist in context bookings? ${bookingExists}`);
           
           if (!bookingExists) {
-            console.warn(`AI provided non-existent bookingReference: ${refFromAI}. Attempting correction.`);
+            console.warn(`[Backend Check] AI provided non-existent bookingReference: ${refFromAI}. Attempting correction.`);
             // AI hallucinated or used wrong ref. Try to find correct one from context.
             // This logic assumes contextData.bookings might be filtered based on prior logic.
             // If contextData.bookings has only one item (due to frontend pre-processing), use that.
             let correctRef = null;
             if (contextData.bookings.length === 1 && contextData.bookings[0].bookingReference) {
               correctRef = contextData.bookings[0].bookingReference;
-              console.log(`Corrected using single booking context: ${correctRef}`);
+              console.log(`[Backend Check] Corrected using single booking context: ${correctRef}`);
             } else {
               // Fallback: If multiple bookings were in context, we can't be sure. 
               // Ideally, improve logic here if possible (e.g., check against mentioned flight# in message)
               // For now, we'll log and let the potentially wrong AI ref proceed (or clear it)
-              console.warn(`Could not reliably correct bookingReference ${refFromAI}. AI response will proceed as is or potentially fail frontend validation.`);
+              console.warn(`[Backend Check] Could not reliably correct bookingReference ${refFromAI}. AI response will proceed as is.`);
               // Optionally, could remove the action entirely if correction fails:
               // finalResponseContent = aiResponse.replace(actionMatch[0], '').trim();
               // hasActionDirective = false;
@@ -210,9 +215,16 @@ export default async function handler(req, res) {
               );
               const correctedActionDirective = `[ACTION:${actionType}]${correctedParamsString}[/ACTION]`;
               finalResponseContent = aiResponse.replace(originalActionDirective, correctedActionDirective);
-              console.log(`Corrected AI response action reference to: ${correctRef}`);
+              console.log(`[Backend Check] Corrected AI response action reference to: ${correctRef}`);
+              console.log(`[Backend Check] Final Response Content Sent: ${finalResponseContent.substring(0, 100)}...`);
+            } else {
+              console.log('[Backend Check] No correction applied. Sending original AI response action.');
             }
+          } else {
+            console.log('[Backend Check] AI reference exists in context. No correction needed.');
           }
+        } else {
+          console.warn('[Backend Check] Could not verify AI reference - missing refFromAI or contextData.bookings.');
         }
       }
     }

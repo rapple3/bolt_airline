@@ -295,7 +295,7 @@ const getRelevantData = (userMessage: string) => {
       
       if (specificBooking) {
         // If found, send ONLY this booking's essential info as context
-        console.log(`Cancellation intent: Found specific booking ${specificBooking.bookingReference} for flight ${mentionedFlightNumber}. Sending minimal context.`);
+        console.log(`[Frontend Context] Cancellation intent: Found specific booking ${specificBooking.bookingReference} for flight ${mentionedFlightNumber}. Sending minimal context.`);
         // Ensure we use scheduledTime here
         bookingDataForContext = [{
           bookingReference: specificBooking.bookingReference,
@@ -306,19 +306,23 @@ const getRelevantData = (userMessage: string) => {
         }];
       } else {
         // Flight mentioned but no matching booking found for user
-        console.log(`Cancellation intent: Flight ${mentionedFlightNumber} mentioned, but no active booking found for user.`);
+        console.log(`[Frontend Context] Cancellation intent: Flight ${mentionedFlightNumber} mentioned, but no active booking found for user. Sending NO booking context.`);
         // Send no specific booking context - AI should ask for PNR
         bookingDataForContext = []; 
       }
     } else {
       // Cancellation intent but no specific flight number mentioned
-      console.log('Cancellation intent: No specific flight number mentioned. Sending full booking list.');
+      console.log('[Frontend Context] Cancellation intent: No specific flight number mentioned. Sending full booking list.');
       // Send the full list if no specific flight is mentioned, let AI figure it out or ask
       bookingDataForContext = currentBookings; // Send full BookingData objects
     }
   } else if (lowerMessage.includes('book') || lowerMessage.includes('reserv') || lowerMessage.includes('change') || lowerMessage.includes('flight')) {
     // For other relevant intents, send the full list
+    console.log('[Frontend Context] Non-cancellation intent. Sending full booking list.');
     bookingDataForContext = currentBookings; // Send full BookingData objects
+  } else {
+    console.log('[Frontend Context] Intent not related to bookings. Sending NO booking context.');
+    bookingDataForContext = []; // Send no booking context for unrelated intents
   }
   // --- End: Refined Booking Context for Cancellation ---
 
