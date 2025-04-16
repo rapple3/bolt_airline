@@ -155,14 +155,20 @@ Would you like me to confirm this flight change?`;
   
   // Handle confirmation of the action
   const handleConfirmAction = () => {
-    if (!actionResult?.pendingAction) return;
+    console.log('[ActionResult] Confirm button clicked. Action result:', actionResult);
+    if (!actionResult?.pendingAction) {
+      console.error('[ActionResult] Confirm clicked, but no pending action found.');
+      return;
+    }
     
     const { type, flightNumber, seatClass, bookingReference, newFlightNumber } = actionResult.pendingAction;
-    
+    console.log('[ActionResult] Pending action details:', actionResult.pendingAction);
+
     // Mark the action as handled
     setActionComplete(true);
     
     if (type === 'BOOK_FLIGHT' && flightNumber && seatClass && onConfirmBooking) {
+      console.log('[ActionResult] Calling onConfirmBooking...');
       // Call the booking action
       onConfirmBooking(flightNumber, seatClass);
       
@@ -183,6 +189,7 @@ Would you like me to confirm this flight change?`;
       // Actual confirmation happens through the CancellationConfirmation component
     }
     else if (type === 'CHANGE_FLIGHT' && bookingReference && newFlightNumber && onConfirmChange) {
+      console.log('[ActionResult] Calling onConfirmChange...');
       // Call the change action
       onConfirmChange(bookingReference, newFlightNumber);
       
