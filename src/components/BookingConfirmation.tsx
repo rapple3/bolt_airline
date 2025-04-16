@@ -114,7 +114,10 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           Cancel
         </button>
         <button
-          onClick={onConfirm}
+          onClick={() => { 
+              console.log('[BookingConfirmation] Confirm button raw click!');
+              onConfirm();
+          }}
           className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex justify-center items-center"
         >
           <Check className="w-4 h-4 mr-2" />

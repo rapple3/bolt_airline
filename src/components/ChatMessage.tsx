@@ -72,12 +72,17 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               flightNumber={pendingConfirmation.flightNumber}
               seatClass={(pendingConfirmation.seatClass || 'economy') as 'economy' | 'comfortPlus' | 'first' | 'deltaOne'}
               onConfirm={() => {
+                console.log('[ChatMessage] Confirm button clicked. Pending data:', pendingConfirmation);
                 if (onConfirmBooking && pendingConfirmation.seatClass && pendingConfirmation.type === 'BOOK_FLIGHT') {
+                  console.log('[ChatMessage] Calling onConfirmBooking...');
                   onConfirmBooking(
                     pendingConfirmation.flightNumber as string, 
                     pendingConfirmation.seatClass,
                     pendingConfirmation
                   );
+                  console.log('[ChatMessage] Called onConfirmBooking.');
+                } else {
+                  console.error('[ChatMessage] onConfirmBooking check failed:', { hasOnConfirm: !!onConfirmBooking, hasSeatClass: !!pendingConfirmation.seatClass, isBookFlight: pendingConfirmation.type === 'BOOK_FLIGHT' });
                 }
               }}
               onCancel={onCancelBooking || (() => {})}
