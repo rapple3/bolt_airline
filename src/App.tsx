@@ -306,21 +306,25 @@ function App() {
     });
     
     // Add a system message for the AI
-    addSystemMessage(`Flight booking confirmed: ${flightNumber} from ${flightDetails.departure} to ${flightDetails.arrival} on ${formattedDate} at ${formattedTime} in ${validClass} class. Booking reference: ${bookingId}.`);
-    
+    const systemLogMessage = `Flight booking confirmed: ${flightNumber} from ${flightDetails.departure} to ${flightDetails.arrival} on ${formattedDate} at ${formattedTime} in ${validClass} class. Booking reference: ${bookingId}.`;
+    addSystemMessage(systemLogMessage);
+
+    // ---> NEW: Add a visible debug message to the chat UI <---
+    const debugMessage: Message = {
+      id: (Date.now() + 1).toString(), // Ensure unique ID
+      type: 'bot', // Can style differently later if needed
+      content: `[DEBUG LOG] ${systemLogMessage}`, // Prefix for clarity
+      timestamp: new Date(),
+      // Ensure this message doesn't have pending confirmations or results meant for other messages
+      actionResult: undefined,
+      pendingConfirmation: undefined,
+    };
+
     // Add confirmation message with detailed information
     const confirmationMessage: Message = {
       id: Date.now().toString(),
       type: 'bot',
-      content: `Great news! I've booked your flight from ${flightDetails.departure} to ${flightDetails.arrival}.
-
-Flight details:
-• Flight number: ${flightNumber}
-• Date: ${formattedDate} at ${formattedTime}
-• Class: ${validClass.charAt(0).toUpperCase() + validClass.slice(1)}
-• Booking reference: ${bookingId}
-
-Your booking is confirmed and has been added to your profile. Is there anything else I can help you with today?`,
+      content: `Great news! I've booked your flight from ${flightDetails.departure} to ${flightDetails.arrival}.\n\nFlight details:\n• Flight number: ${flightNumber}\n• Date: ${formattedDate} at ${formattedTime}\n• Class: ${validClass.charAt(0).toUpperCase() + validClass.slice(1)}\n• Booking reference: ${bookingId}\n\nYour booking is confirmed and has been added to your profile. Is there anything else I can help you with today?`,
       timestamp: new Date(),
       actionResult: {
         success: true,
@@ -346,7 +350,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           return rest;
         }
         return msg;
-      }).concat(confirmationMessage);
+      }).concat(debugMessage).concat(confirmationMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -366,7 +370,26 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`Flight booking process cancelled: User started but did not complete the booking process. No reservation was created.`);
+    const systemLogMessage = `Flight booking process cancelled: User started but did not complete the booking process. No reservation was created.`;
+    addSystemMessage(systemLogMessage);
+
+    // Add a visible debug message to the chat UI
+    const debugMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: `[DEBUG LOG] ${systemLogMessage}`,
+      timestamp: new Date(),
+      actionResult: undefined,
+      pendingConfirmation: undefined,
+    };
+    
+    // Add user-facing cancellation message
+    const cancellationUIMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: 'Booking has been cancelled. Is there anything else I can help you with?',
+      timestamp: new Date()
+    };
     
     // Update messages to remove pending confirmation
     setMessages(prev => {
@@ -377,12 +400,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           return rest;
         }
         return msg;
-      }).concat({
-        id: Date.now().toString(),
-        type: 'bot',
-        content: 'Booking has been cancelled. Is there anything else I can help you with?',
-        timestamp: new Date()
-      });
+      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -420,7 +438,18 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`Booking cancellation completed: Booking reference ${bookingReference} has been cancelled. The user will receive an eCredit or refund according to the fare rules.`);
+    const systemLogMessage = `Booking cancellation completed: Booking reference ${bookingReference} has been cancelled. The user will receive an eCredit or refund according to the fare rules.`;
+    addSystemMessage(systemLogMessage);
+
+    // Add a visible debug message to the chat UI
+    const debugMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: `[DEBUG LOG] ${systemLogMessage}`,
+      timestamp: new Date(),
+      actionResult: undefined,
+      pendingConfirmation: undefined,
+    };
         
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -447,7 +476,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           return rest;
         }
         return msg;
-      }).concat(confirmationMessage);
+      }).concat(debugMessage).concat(confirmationMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -468,7 +497,26 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`Cancellation request withdrawn: User decided not to proceed with cancellation of their booking. The original booking remains active and unchanged.`);
+    const systemLogMessage = `Cancellation request withdrawn: User decided not to proceed with cancellation of their booking. The original booking remains active and unchanged.`;
+    addSystemMessage(systemLogMessage);
+
+    // Add a visible debug message to the chat UI
+    const debugMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: `[DEBUG LOG] ${systemLogMessage}`,
+      timestamp: new Date(),
+      actionResult: undefined,
+      pendingConfirmation: undefined,
+    };
+    
+    // Add user-facing message
+    const cancellationUIMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: 'Cancellation request has been discarded. Your booking remains active. Is there anything else I can help you with?',
+      timestamp: new Date()
+    };
     
     // Update messages to remove pending confirmation
     setMessages(prev => {
@@ -479,12 +527,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           return rest;
         }
         return msg;
-      }).concat({
-        id: Date.now().toString(),
-        type: 'bot',
-        content: 'Cancellation request has been discarded. Your booking remains active. Is there anything else I can help you with?',
-        timestamp: new Date()
-      });
+      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -522,7 +565,18 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`Flight change completed: Booking ${bookingReference} has been changed to flight ${newFlightNumber}. All passenger and payment details have been transferred to the new flight.`);
+    const systemLogMessage = `Flight change completed: Booking ${bookingReference} has been changed to flight ${newFlightNumber}. All passenger and payment details have been transferred to the new flight.`;
+    addSystemMessage(systemLogMessage);
+
+    // Add a visible debug message to the chat UI
+    const debugMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: `[DEBUG LOG] ${systemLogMessage}`,
+      timestamp: new Date(),
+      actionResult: undefined,
+      pendingConfirmation: undefined,
+    };
         
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -550,7 +604,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           return rest;
         }
         return msg;
-      }).concat(confirmationMessage);
+      }).concat(debugMessage).concat(confirmationMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -571,7 +625,26 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`Flight change request withdrawn: User decided not to proceed with changing their flight. The original flight booking remains active and unchanged.`);
+    const systemLogMessage = `Flight change request withdrawn: User decided not to proceed with changing their flight. The original flight booking remains active and unchanged.`;
+    addSystemMessage(systemLogMessage);
+
+    // Add a visible debug message to the chat UI
+    const debugMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: `[DEBUG LOG] ${systemLogMessage}`,
+      timestamp: new Date(),
+      actionResult: undefined,
+      pendingConfirmation: undefined,
+    };
+    
+    // Add user-facing message
+    const cancellationUIMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: 'Flight change request has been cancelled. Your original booking remains unchanged. Is there anything else I can help you with?',
+      timestamp: new Date()
+    };
     
     // Update messages to remove pending confirmation
     setMessages(prev => {
@@ -582,12 +655,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           return rest;
         }
         return msg;
-      }).concat({
-        id: Date.now().toString(),
-        type: 'bot',
-        content: 'Flight change request has been cancelled. Your original booking remains unchanged. Is there anything else I can help you with?',
-        timestamp: new Date()
-      });
+      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -631,7 +699,18 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       const displayClass = newClass || pendingMessage.pendingConfirmation.targetClass || 'economy';
       
       // Add a system message for the AI
-      addSystemMessage(`Seat change completed: For booking ${bookingReference}, seat has been changed to ${seatNumber}${newClass ? ` with upgrade to ${displayClass} class` : ''}. Seat map has been updated and confirmation will be sent via email.`);
+      const systemLogMessage = `Seat change completed: For booking ${bookingReference}, seat has been changed to ${seatNumber}${newClass ? ` with upgrade to ${displayClass} class` : ''}. Seat map has been updated and confirmation will be sent via email.`;
+      addSystemMessage(systemLogMessage);
+
+      // Add a visible debug message to the chat UI
+      const debugMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: `[DEBUG LOG] ${systemLogMessage}`,
+        timestamp: new Date(),
+        actionResult: undefined,
+        pendingConfirmation: undefined,
+      };
             
       // Add confirmation message
       const confirmationMessage: Message = {
@@ -660,7 +739,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
             return rest;
           }
           return msg;
-        }).concat(confirmationMessage);
+        }).concat(debugMessage).concat(confirmationMessage); // Add both messages
         
         // Force refresh the current user data *after* updating messages
         setCurrentUser(dataManager.getUserProfile());
@@ -694,7 +773,26 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`Seat change request withdrawn: User decided not to proceed with changing their seat. The original seat assignment remains active and unchanged.`);
+    const systemLogMessage = `Seat change request withdrawn: User decided not to proceed with changing their seat. The original seat assignment remains active and unchanged.`;
+    addSystemMessage(systemLogMessage);
+
+    // Add a visible debug message to the chat UI
+    const debugMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: `[DEBUG LOG] ${systemLogMessage}`,
+      timestamp: new Date(),
+      actionResult: undefined,
+      pendingConfirmation: undefined,
+    };
+    
+    // Add user-facing message
+    const cancellationUIMessage: Message = {
+      id: Date.now().toString(),
+      type: 'bot',
+      content: 'Seat change request has been cancelled. Your current seat assignment remains unchanged. Is there anything else I can help you with?',
+      timestamp: new Date()
+    };
     
     // Update messages to remove pending confirmation
     setMessages(prev => {
@@ -705,12 +803,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           return rest;
         }
         return msg;
-      }).concat({
-        id: Date.now().toString(),
-        type: 'bot',
-        content: 'Seat change request has been cancelled. Your current seat assignment remains unchanged. Is there anything else I can help you with?',
-        timestamp: new Date()
-      });
+      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
