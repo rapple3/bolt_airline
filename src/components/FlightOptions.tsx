@@ -30,7 +30,6 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
   actionType = 'book' 
 }) => {
   const [selectedFlight, setSelectedFlight] = useState<string | null>(null);
-  const [selectedClass, setSelectedClass] = useState<'economy' | 'comfortPlus' | 'first' | 'deltaOne'>('economy');
   
   // Safety check - if flights is null or undefined, render an empty div
   if (!flights || !Array.isArray(flights) || flights.length === 0) {
@@ -40,20 +39,6 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
       </div>
     );
   }
-  
-  const handleFlightSelect = (flightNumber: string) => {
-    setSelectedFlight(flightNumber);
-  };
-  
-  const handleClassSelect = (seatClass: 'economy' | 'comfortPlus' | 'first' | 'deltaOne') => {
-    setSelectedClass(seatClass);
-  };
-  
-  const handleConfirm = () => {
-    if (selectedFlight) {
-      onSelect(selectedFlight, selectedClass);
-    }
-  };
   
   // Helper to format date/time
   const formatDateTime = (dateString: string) => {
@@ -86,12 +71,11 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
         return (
           <div 
             key={flight.flightNumber}
-            className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+            className={`border rounded-lg p-3 ${
               isSelected 
                 ? 'border-blue-500 bg-blue-50' 
-                : 'border-gray-200 hover:border-gray-300'
+                : 'border-gray-200'
             }`}
-            onClick={() => handleFlightSelect(flight.flightNumber)}
           >
             <div className="flex justify-between items-start">
               <div className="flex items-center">
@@ -101,161 +85,92 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                   <p className="text-sm text-gray-500">{flight.aircraft}</p>
                 </div>
               </div>
-              {isSelected && (
-                <div className="bg-blue-500 text-white p-1 rounded-full">
-                  <Check className="w-4 h-4" />
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center">
-              <div>
-                <p className="font-medium">{flight.departure} → {flight.arrival}</p>
-                <div className="flex items-center text-sm text-gray-500 mt-1">
-                  <Clock className="w-3 h-3 mr-1" />
-                  <span>{flight.duration}</span>
-                </div>
-              </div>
-              <div className="mt-2 sm:mt-0 sm:text-right">
+              <div className="text-right">
                 <p className="font-medium">{time}</p>
-                <div className="flex items-center text-sm text-gray-500 mt-1">
+                <div className="flex items-center justify-end text-sm text-gray-500 mt-1">
                   <Calendar className="w-3 h-3 mr-1" />
                   <span>{date}</span>
                 </div>
               </div>
             </div>
             
-            <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
-              <div className="text-center p-2 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">Economy</p>
-                <p className="font-medium">{safeSeats.economy.length} seats</p>
-                <div className="flex items-center justify-center mt-1 text-green-600">
-                  <DollarSign className="w-3 h-3" />
-                  <span>{safeSeats.economy.length > 0 ? safeSeats.economy[0].price : 'N/A'}</span>
-                </div>
-              </div>
-              <div className="text-center p-2 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">Comfort+</p>
-                <p className="font-medium">{safeSeats.comfortPlus.length} seats</p>
-                <div className="flex items-center justify-center mt-1 text-green-600">
-                  <DollarSign className="w-3 h-3" />
-                  <span>{safeSeats.comfortPlus.length > 0 ? safeSeats.comfortPlus[0].price : 'N/A'}</span>
-                </div>
-              </div>
-              <div className="text-center p-2 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">First Class</p>
-                <p className="font-medium">{safeSeats.first.length} seats</p>
-                <div className="flex items-center justify-center mt-1 text-green-600">
-                  <DollarSign className="w-3 h-3" />
-                  <span>{safeSeats.first.length > 0 ? safeSeats.first[0].price : 'N/A'}</span>
-                </div>
+            <div className="mt-2">
+              <p className="font-medium">{flight.departure} → {flight.arrival}</p>
+              <div className="flex items-center text-sm text-gray-500 mt-1">
+                <Clock className="w-3 h-3 mr-1" />
+                <span>{flight.duration}</span>
               </div>
             </div>
             
-            {selectedFlight === flight.flightNumber && safeSeats.deltaOne.length > 0 && (
-              <div className="mt-2">
-                <div className="text-center p-2 bg-blue-50 rounded-lg">
-                  <p className="text-blue-600">Delta One</p>
-                  <div className="flex items-center justify-center mt-1 text-green-600">
-                    <DollarSign className="w-3 h-3" />
-                    <span>{safeSeats.deltaOne.length > 0 ? safeSeats.deltaOne[0].price : 'N/A'}</span>
+            <h4 className="text-sm font-medium text-gray-700 mt-4 mb-2">Select Class:</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {safeSeats.economy.length > 0 && (
+                <button
+                  className="px-3 py-2 rounded-md text-sm flex items-center justify-between border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  onClick={() => onSelect(flight.flightNumber, 'economy')}
+                >
+                  <div>
+                    <span className="font-medium">Economy</span>
+                    <p className="text-xs text-gray-500">{safeSeats.economy.length} seats</p>
                   </div>
-                </div>
-              </div>
-            )}
+                  <div className="flex items-center text-green-600">
+                    <DollarSign className="w-3 h-3" />
+                    <span>{safeSeats.economy[0].price}</span>
+                  </div>
+                </button>
+              )}
+              
+              {safeSeats.comfortPlus.length > 0 && (
+                <button
+                  className="px-3 py-2 rounded-md text-sm flex items-center justify-between border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  onClick={() => onSelect(flight.flightNumber, 'comfortPlus')}
+                >
+                  <div>
+                    <span className="font-medium">Comfort+</span>
+                    <p className="text-xs text-gray-500">{safeSeats.comfortPlus.length} seats</p>
+                  </div>
+                  <div className="flex items-center text-green-600">
+                    <DollarSign className="w-3 h-3" />
+                    <span>{safeSeats.comfortPlus[0].price}</span>
+                  </div>
+                </button>
+              )}
+              
+              {safeSeats.first.length > 0 && (
+                <button
+                  className="px-3 py-2 rounded-md text-sm flex items-center justify-between border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  onClick={() => onSelect(flight.flightNumber, 'first')}
+                >
+                  <div>
+                    <span className="font-medium">First Class</span>
+                    <p className="text-xs text-gray-500">{safeSeats.first.length} seats</p>
+                  </div>
+                  <div className="flex items-center text-green-600">
+                    <DollarSign className="w-3 h-3" />
+                    <span>{safeSeats.first[0].price}</span>
+                  </div>
+                </button>
+              )}
+              
+              {safeSeats.deltaOne.length > 0 && (
+                <button
+                  className="px-3 py-2 rounded-md text-sm flex items-center justify-between border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  onClick={() => onSelect(flight.flightNumber, 'deltaOne')}
+                >
+                  <div>
+                    <span className="font-medium">Delta One</span>
+                    <p className="text-xs text-gray-500">{safeSeats.deltaOne.length} seats</p>
+                  </div>
+                  <div className="flex items-center text-green-600">
+                    <DollarSign className="w-3 h-3" />
+                    <span>{safeSeats.deltaOne[0].price}</span>
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
         );
       })}
-      
-      {selectedFlight && (
-        <div className="mt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Select Class:</h4>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-            {(() => {
-              const flight = flights.find(f => f.flightNumber === selectedFlight);
-              if (!flight) return null;
-              
-              // Create safe seat arrays
-              const safeSeats = {
-                economy: Array.isArray(flight.seats?.economy) ? flight.seats.economy : [],
-                comfortPlus: Array.isArray(flight.seats?.comfortPlus) ? flight.seats.comfortPlus : [],
-                first: Array.isArray(flight.seats?.first) ? flight.seats.first : [],
-                deltaOne: Array.isArray(flight.seats?.deltaOne) ? flight.seats.deltaOne : []
-              };
-              
-              return (
-                <>
-                  <button
-                    className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                      selectedClass === 'economy'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    onClick={() => handleClassSelect('economy')}
-                  >
-                    <span>Economy</span>
-                    <div className="ml-2 flex items-center">
-                      <DollarSign className="w-3 h-3" />
-                      <span>{safeSeats.economy.length > 0 ? safeSeats.economy[0].price : 'N/A'}</span>
-                    </div>
-                  </button>
-                  <button
-                    className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                      selectedClass === 'comfortPlus'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    onClick={() => handleClassSelect('comfortPlus')}
-                  >
-                    <span>Comfort+</span>
-                    <div className="ml-2 flex items-center">
-                      <DollarSign className="w-3 h-3" />
-                      <span>{safeSeats.comfortPlus.length > 0 ? safeSeats.comfortPlus[0].price : 'N/A'}</span>
-                    </div>
-                  </button>
-                  <button
-                    className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                      selectedClass === 'first'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    onClick={() => handleClassSelect('first')}
-                  >
-                    <span>First Class</span>
-                    <div className="ml-2 flex items-center">
-                      <DollarSign className="w-3 h-3" />
-                      <span>{safeSeats.first.length > 0 ? safeSeats.first[0].price : 'N/A'}</span>
-                    </div>
-                  </button>
-                  {safeSeats.deltaOne.length > 0 && (
-                    <button
-                      className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                        selectedClass === 'deltaOne'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                      onClick={() => handleClassSelect('deltaOne')}
-                    >
-                      <span>Delta One</span>
-                      <div className="ml-2 flex items-center">
-                        <DollarSign className="w-3 h-3" />
-                        <span>{safeSeats.deltaOne.length > 0 ? safeSeats.deltaOne[0].price : 'N/A'}</span>
-                      </div>
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-          
-          <button
-            className="mt-4 w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-            onClick={handleConfirm}
-          >
-            {actionType === 'book' ? 'Book This Flight' : 'Change to This Flight'}
-          </button>
-        </div>
-      )}
     </div>
   );
 };

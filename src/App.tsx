@@ -6,7 +6,7 @@ import UserProfileCard from './components/UserProfileCard';
 import UserSelector from './components/UserSelector';
 import { HandoffModal } from './components/HandoffModal';
 import { SeatChangeConfirmation } from './components/SeatChangeConfirmation';
-import { getChatResponse, resetChatHistory } from './utils/openai';
+import { getChatResponse, resetChatHistory, addSystemMessage } from './utils/openai';
 import { mockBookings, mockUserProfile } from './data/mockData';
 import { Message, AgentHandoff, UserProfile } from './types';
 import { dataManager } from './utils/dataManager';
@@ -305,6 +305,9 @@ function App() {
       minute: '2-digit'
     });
     
+    // Add a system message for the AI
+    addSystemMessage(`User confirmed booking for flight ${flightNumber} in ${validClass} class. Booking reference: ${bookingId}.`);
+    
     // Add confirmation message with detailed information
     const confirmationMessage: Message = {
       id: Date.now().toString(),
@@ -334,12 +337,9 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       }
     };
     
-    // Force refresh the current user data to ensure the profile card updates
-    setCurrentUser(dataManager.getUserProfile());
-    
     // Update messages and remove pending confirmation from the previous message
     setMessages(prev => {
-      return prev.map(msg => {
+      const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
@@ -347,6 +347,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         }
         return msg;
       }).concat(confirmationMessage);
+      
+      // Force refresh the current user data *after* updating messages
+      setCurrentUser(dataManager.getUserProfile());
+      
+      return updatedMessages;
     });
   };
 
@@ -360,9 +365,12 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       return;
     }
     
+    // Add a system message for the AI
+    addSystemMessage(`User cancelled the flight booking process without confirming.`);
+    
     // Update messages to remove pending confirmation
     setMessages(prev => {
-      return prev.map(msg => {
+      const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
@@ -375,6 +383,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         content: 'Booking has been cancelled. Is there anything else I can help you with?',
         timestamp: new Date()
       });
+      
+      // Force refresh the current user data *after* updating messages
+      setCurrentUser(dataManager.getUserProfile());
+      
+      return updatedMessages;
     });
   };
 
@@ -406,9 +419,9 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       return;
     }
     
-    // Force refresh the current user data to ensure the profile card updates
-    setCurrentUser(dataManager.getUserProfile());
-    
+    // Add a system message for the AI
+    addSystemMessage(`User cancelled booking with reference ${bookingReference}.`);
+        
     // Add confirmation message
     const confirmationMessage: Message = {
       id: Date.now().toString(),
@@ -425,9 +438,9 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       }
     };
     
-    // Update messages and remove pending confirmation from the previous message
+    // Update messages and remove pending confirmation, then refresh user profile
     setMessages(prev => {
-      return prev.map(msg => {
+      const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
@@ -435,6 +448,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         }
         return msg;
       }).concat(confirmationMessage);
+      
+      // Force refresh the current user data *after* updating messages
+      setCurrentUser(dataManager.getUserProfile());
+      
+      return updatedMessages;
     });
   };
 
@@ -449,9 +467,12 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       return;
     }
     
+    // Add a system message for the AI
+    addSystemMessage(`User discarded the booking cancellation request.`);
+    
     // Update messages to remove pending confirmation
     setMessages(prev => {
-      return prev.map(msg => {
+      const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
@@ -464,6 +485,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         content: 'Cancellation request has been discarded. Your booking remains active. Is there anything else I can help you with?',
         timestamp: new Date()
       });
+      
+      // Force refresh the current user data *after* updating messages
+      setCurrentUser(dataManager.getUserProfile());
+      
+      return updatedMessages;
     });
   };
 
@@ -495,9 +521,9 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       return;
     }
     
-    // Force refresh the current user data to ensure the profile card updates
-    setCurrentUser(dataManager.getUserProfile());
-    
+    // Add a system message for the AI
+    addSystemMessage(`User changed booking ${bookingReference} to flight ${newFlightNumber}.`);
+        
     // Add confirmation message
     const confirmationMessage: Message = {
       id: Date.now().toString(),
@@ -514,10 +540,10 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         }
       }
     };
-    
-    // Update messages and remove pending confirmation from the previous message
+
+    // Update messages and remove pending confirmation, then refresh user profile
     setMessages(prev => {
-      return prev.map(msg => {
+      const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
@@ -525,6 +551,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         }
         return msg;
       }).concat(confirmationMessage);
+      
+      // Force refresh the current user data *after* updating messages
+      setCurrentUser(dataManager.getUserProfile());
+      
+      return updatedMessages;
     });
   };
 
@@ -539,9 +570,12 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       return;
     }
     
+    // Add a system message for the AI
+    addSystemMessage(`User cancelled the flight change request.`);
+    
     // Update messages to remove pending confirmation
     setMessages(prev => {
-      return prev.map(msg => {
+      const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
@@ -554,6 +588,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         content: 'Flight change request has been cancelled. Your original booking remains unchanged. Is there anything else I can help you with?',
         timestamp: new Date()
       });
+      
+      // Force refresh the current user data *after* updating messages
+      setCurrentUser(dataManager.getUserProfile());
+      
+      return updatedMessages;
     });
   };
 
@@ -572,7 +611,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       // Skip actual seat change and force success
       // This simplifies the process since the mock data in SeatChangeConfirmation 
       // doesn't match the actual flight data
-      const success = true;
+      const success = true; 
       
       if (!success) {
         // Show error message
@@ -591,9 +630,9 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       // Use the current class if no upgrade was selected
       const displayClass = newClass || pendingMessage.pendingConfirmation.targetClass || 'economy';
       
-      // Force refresh the current user data to ensure the profile card updates
-      setCurrentUser(dataManager.getUserProfile());
-      
+      // Add a system message for the AI
+      addSystemMessage(`User changed seat to ${seatNumber}${newClass ? ` in ${displayClass} class` : ''} for booking ${bookingReference}.`);
+            
       // Add confirmation message
       const confirmationMessage: Message = {
         id: Date.now().toString(),
@@ -612,9 +651,9 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         }
       };
       
-      // Update messages and remove pending confirmation from the previous message
+      // Update messages and remove pending confirmation, then refresh user profile
       setMessages(prev => {
-        return prev.map(msg => {
+        const updatedMessages = prev.map(msg => {
           if (msg.id === pendingMessage.id) {
             // Remove the pending confirmation
             const { pendingConfirmation, ...rest } = msg;
@@ -622,6 +661,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
           }
           return msg;
         }).concat(confirmationMessage);
+        
+        // Force refresh the current user data *after* updating messages
+        setCurrentUser(dataManager.getUserProfile());
+        
+        return updatedMessages;
       });
     } catch (error) {
       console.error("Error changing seat:", error);
@@ -649,9 +693,12 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       return;
     }
     
+    // Add a system message for the AI
+    addSystemMessage(`User cancelled the seat change request.`);
+    
     // Update messages to remove pending confirmation
     setMessages(prev => {
-      return prev.map(msg => {
+      const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
           // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
@@ -664,6 +711,11 @@ Your booking is confirmed and has been added to your profile. Is there anything 
         content: 'Seat change request has been cancelled. Your current seat assignment remains unchanged. Is there anything else I can help you with?',
         timestamp: new Date()
       });
+      
+      // Force refresh the current user data *after* updating messages
+      setCurrentUser(dataManager.getUserProfile());
+      
+      return updatedMessages;
     });
   };
 

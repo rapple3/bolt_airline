@@ -739,3 +739,10 @@ export const getChatResponse = async (userMessage: string): Promise<{
 export const resetChatHistory = () => {
   messageHistory = [];
 };
+
+// This function adds a system message to inform the AI about user actions
+export const addSystemMessage = (actionMessage: string) => {
+  // Add a system message to the history
+  messageHistory.push({ role: 'system', content: actionMessage });
+  console.log('Added system message to chat history:', actionMessage);
+};
