@@ -4,10 +4,11 @@ import { Check, X, Plane, CreditCard, Luggage, MapPin, Calendar } from 'lucide-r
 import { FlightOptions } from './FlightOptions';
 import { dataManager } from '../utils/dataManager';
 import { CancellationConfirmation } from './CancellationConfirmation';
+import { Message, BookingData } from '../types';
 
 export interface ActionResultProps {
   result: ActionResult;
-  onConfirmBooking?: (flightNumber: string, seatClass: string) => void;
+  onConfirmBooking?: (flightNumber: string, seatClass: string, confirmationData: Message['pendingConfirmation']) => void;
   onCancelBooking?: () => void;
   onConfirmCancellation?: (bookingReference: string) => void;
   onCancelCancellation?: () => void;
@@ -169,21 +170,36 @@ Would you like me to confirm this flight change?`;
     
     if (type === 'BOOK_FLIGHT' && flightNumber && seatClass && onConfirmBooking) {
       console.log('[ActionResult] Calling onConfirmBooking...');
-      // Call the booking action
-      onConfirmBooking(flightNumber, seatClass);
       
-      // Update the result
-      setActionResult({
-        success: true,
-        message: `Booking confirmed for flight ${flightNumber}`,
-        details: {
-          flightNumber,
-          seatClass,
-          status: 'confirmed'
-        }
-      });
+      // --- Find the full flight details from the original result data ---
+      const originalFlights = Array.isArray(result.data) ? result.data : [];
+      const flightDetails = originalFlights.find(f => f.flightNumber === flightNumber);
+      
+      if (!flightDetails) {
+        console.error(`[ActionResult] Could not find flight details for ${flightNumber} in original result data.`);
+        // Optionally update state to show an error to the user
+        setActionResult({
+          success: false,
+          message: `Error: Could not retrieve full details for flight ${flightNumber}. Booking aborted.`,
+        });
+        return; // Stop if details are missing
+      }
+      // ---------------------------------------------------------------------
+
+      // Construct the confirmationData object needed by App.tsx's handler
+      const confirmationData = {
+        type: 'BOOK_FLIGHT' as const,
+        flightNumber,
+        seatClass,
+        flightDetails // Pass the full details object
+      };
+
+      // Call the booking action with all 3 arguments
+      onConfirmBooking(flightNumber, seatClass, confirmationData);
+      
+      // Update the result (This part might be redundant now as App.tsx handles the confirmation message)
     } 
-    else if (type === 'CANCEL_BOOKING' && bookingReference && onConfirmCancellation) {
+    else if (type === 'CANCEL_BOOKING' && onConfirmCancellation) {
       // For cancellations, we don't automatically confirm here
       // Instead, let's show the cancellation confirmation component
       // Actual confirmation happens through the CancellationConfirmation component

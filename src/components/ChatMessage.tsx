@@ -182,6 +182,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           <div className="whitespace-pre-wrap mb-3">{content}</div>
           <ActionResultCard
             result={actionResult}
+            onConfirmBooking={onConfirmBooking}
             onCancelBooking={onCancelBooking}
             onConfirmCancellation={onConfirmCancellation}
             onCancelCancellation={onCancelCancellation}
