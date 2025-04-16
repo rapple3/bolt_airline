@@ -248,7 +248,7 @@ function App() {
   };
 
   // Handler for flight booking confirmation
-  const handleConfirmBooking = (flightNumber: string, seatClass: string) => {
+  const handleConfirmBooking = async (flightNumber: string, seatClass: string) => {
     // Find the message with the pending confirmation
     const pendingMessage = messages.find(
       m => m.type === 'bot' && m.pendingConfirmation?.type === 'BOOK_FLIGHT'
@@ -309,18 +309,17 @@ function App() {
     const systemLogMessage = `Flight booking confirmed: ${flightNumber} from ${flightDetails.departure} to ${flightDetails.arrival} on ${formattedDate} at ${formattedTime} in ${validClass} class. Booking reference: ${bookingId}.`;
     addSystemMessage(systemLogMessage);
 
-    // ---> NEW: Add a visible debug message to the chat UI <---
+    // Add visible debug message
     const debugMessage: Message = {
-      id: (Date.now() + 1).toString(), // Ensure unique ID
-      type: 'bot', // Can style differently later if needed
-      content: `[DEBUG LOG] ${systemLogMessage}`, // Prefix for clarity
+      id: (Date.now() + 1).toString(), 
+      type: 'bot',
+      content: `[DEBUG LOG] ${systemLogMessage}`,
       timestamp: new Date(),
-      // Ensure this message doesn't have pending confirmations or results meant for other messages
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
 
-    // Add confirmation message with detailed information
+    // Add user-facing confirmation message
     const confirmationMessage: Message = {
       id: Date.now().toString(),
       type: 'bot',
@@ -340,23 +339,57 @@ function App() {
         }
       }
     };
-    
-    // Update messages and remove pending confirmation from the previous message
+
+    // Update messages state first
     setMessages(prev => {
       const updatedMessages = prev.map(msg => {
         if (msg.id === pendingMessage.id) {
-          // Remove the pending confirmation
           const { pendingConfirmation, ...rest } = msg;
           return rest;
         }
         return msg;
-      }).concat(debugMessage).concat(confirmationMessage); // Add both messages
-      
-      // Force refresh the current user data *after* updating messages
+      }).concat(debugMessage).concat(confirmationMessage);
+
       setCurrentUser(dataManager.getUserProfile());
-      
       return updatedMessages;
     });
+
+    // ---> NEW: Trigger AI response after UI update <---
+    setIsLoading(true); // Show loading indicator
+    try {
+      // Send an internal prompt to make the AI process the update
+      // NOTE: We expect the AI to respond based on the context, including the Action Log
+      const response = await getChatResponse("SYSTEM_ACTION: Booking Confirmed. Acknowledge and continue conversation.");
+
+      // Avoid adding duplicate confirmation content if the AI essentially repeats it.
+      // Check if the AI response significantly differs from the confirmation message.
+      // This is a basic check; more sophisticated checks might be needed.
+      if (response.content && !response.content.includes(confirmationMessage.content.substring(0, 50))) { 
+        const botFollowUpMessage: Message = {
+          id: (Date.now() + 2).toString(), // Ensure unique ID
+          type: 'bot',
+          content: response.content, // AI's response after processing the action
+          timestamp: new Date(),
+          actionResult: response.actionResult, // Pass through results/confirmations if AI provides them
+          pendingConfirmation: (response as any).pendingConfirmation // Handle potential pendingConfirmation property
+        };
+        setMessages(prev => [...prev, botFollowUpMessage]);
+      } else {
+        console.log("AI response similar to confirmation, skipping follow-up message.");
+      }
+
+    } catch (error) {
+      console.error('Error getting follow-up response:', error);
+      const errorMessage: Message = {
+         id: (Date.now() + 2).toString(),
+         type: 'bot',
+         content: "I've processed your request, but encountered an issue generating a follow-up response.",
+         timestamp: new Date()
+      };
+       setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false); // Hide loading indicator
+    }
   };
 
   const handleCancelBooking = () => {

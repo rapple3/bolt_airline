@@ -65,11 +65,12 @@ PERSONALITY TRAITS:
 - Progressive conversation: Gather information naturally through conversation
 
 ACTION LOGS:
-- Pay special attention to any messages with [ACTION_LOG] prefix in the conversation history
-- These logs contain information about user interactions with the system's UI
-- They provide critical details about flight bookings, cancellations, and changes
-- When a user asks about recent actions, reference these logs for the most accurate information
-- Trust these action logs over other information when there are discrepancies
+- CRITICAL: Pay special attention to any messages with [ACTION_LOG] prefix in the conversation history.
+- These logs represent the GROUND TRUTH about user actions taken through the UI.
+- They contain definitive details about flight bookings, cancellations, and changes.
+- When a user asks about recent actions (e.g., "what did I just book?"), you MUST reference the latest [ACTION_LOG] entry first.
+- PRIORITIZE the information in [ACTION_LOG] entries over any other booking data found in the context (like general booking lists or user profile info), especially for recent events.
+- If an action log confirms a booking, use that information directly to answer the user's query.
 
 INFORMATION GATHERING GUIDELINES:
 - Always acknowledge information provided by the user before asking for more
@@ -280,59 +281,40 @@ const resolveFlightReference = (userMessage: string): FlightData | undefined => 
 const getRelevantData = (userMessage: string) => {
   // Use data from dataManager instead of directly from mockData
   const currentUserProfile = dataManager.getUserProfile();
-  const currentBookings = dataManager.getBookings();
+  const currentBookings = dataManager.getBookings(); // Get all current bookings
   const currentFlights = dataManager.getFlights();
   
-  // --- Start: Refined Booking Context for Cancellation ---
-  // Explicitly type the array to hold minimal booking info or full BookingData
-  let bookingDataForContext: Array<Partial<BookingData> | BookingData> = []; 
   const lowerMessage = userMessage.toLowerCase();
-  const isCancellationIntent = lowerMessage.includes('cancel');
+  const isRecentActionQuery = lowerMessage.includes('just book') || lowerMessage.includes('recent booking') || lowerMessage.includes('did i book');
+
+  let bookingDataForContext: Array<Partial<BookingData>> = [];
   
-  if (isCancellationIntent) {
-    // Try to extract a flight number (adjust regex if needed)
-    const flightNumMatch = userMessage.match(/DL\d{3,4}/i);
-    const mentionedFlightNumber = flightNumMatch ? flightNumMatch[0].toUpperCase() : null;
-    
-    if (mentionedFlightNumber) {
-      // Find the specific booking for this flight and user
-      const specificBooking = currentBookings.find(b => 
-        b.flightNumber.toUpperCase() === mentionedFlightNumber && 
-        b.status === 'confirmed' // Ensure we only find active bookings
-      );
-      
-      if (specificBooking) {
-        // If found, send ONLY this booking's essential info as context
-        console.log(`[Frontend Context] Cancellation intent: Found specific booking ${specificBooking.bookingReference} for flight ${mentionedFlightNumber}. Sending minimal context.`);
-        // Ensure we use scheduledTime here
-        bookingDataForContext = [{
-          bookingReference: specificBooking.bookingReference,
-          flightNumber: specificBooking.flightNumber,
-          passengerName: specificBooking.passengerName,
-          scheduledTime: specificBooking.scheduledTime, 
-          status: specificBooking.status
-        }];
-      } else {
-        // Flight mentioned but no matching booking found for user
-        console.log(`[Frontend Context] Cancellation intent: Flight ${mentionedFlightNumber} mentioned, but no active booking found for user. Sending NO booking context.`);
-        // Send no specific booking context - AI should ask for PNR
-        bookingDataForContext = []; 
-      }
-    } else {
-      // Cancellation intent but no specific flight number mentioned
-      console.log('[Frontend Context] Cancellation intent: No specific flight number mentioned. Sending full booking list.');
-      // Send the full list if no specific flight is mentioned, let AI figure it out or ask
-      bookingDataForContext = currentBookings; // Send full BookingData objects
+  // If asking about a recent action, prioritize the action log and the latest booking
+  if (isRecentActionQuery && conversationContext.actionLog && conversationContext.actionLog.length > 0) {
+    const latestBooking = currentBookings.length > 0 ? currentBookings[currentBookings.length - 1] : null;
+    if (latestBooking) {
+      bookingDataForContext = [{
+        bookingReference: latestBooking.bookingReference,
+        flightNumber: latestBooking.flightNumber,
+        passengerName: latestBooking.passengerName,
+        scheduledTime: latestBooking.scheduledTime ?? 'Unknown',
+        status: latestBooking.status,
+        class: latestBooking.class
+      }];
     }
-  } else if (lowerMessage.includes('book') || lowerMessage.includes('reserv') || lowerMessage.includes('change') || lowerMessage.includes('flight')) {
-    // For other relevant intents, send the full list
-    console.log('[Frontend Context] Non-cancellation intent. Sending full booking list.');
-    bookingDataForContext = currentBookings; // Send full BookingData objects
+    console.log('[Frontend Context] Recent action query detected. Sending only latest booking and action log.');
   } else {
-    console.log('[Frontend Context] Intent not related to bookings. Sending NO booking context.');
-    bookingDataForContext = []; // Send no booking context for unrelated intents
+    // For other queries, send a limited list of bookings
+    bookingDataForContext = currentBookings.slice(-3).map(b => ({ // Send last 3
+      bookingReference: b.bookingReference,
+      flightNumber: b.flightNumber,
+      passengerName: b.passengerName,
+      scheduledTime: b.scheduledTime ?? 'Unknown', // Safe access
+      status: b.status,
+      class: b.class
+    }));
+    console.log('[Frontend Context] General query. Sending last 3 bookings.');
   }
-  // --- End: Refined Booking Context for Cancellation ---
 
   // Resolve any reference to a specific flight
   const referencedFlight = resolveFlightReference(userMessage);
@@ -350,7 +332,7 @@ const getRelevantData = (userMessage: string) => {
     upcomingFlights: currentUserProfile.upcomingFlights.map(b => ({ 
         bookingReference: b.bookingReference,
         flightNumber: b.flightNumber,
-        scheduledTime: b.scheduledTime,
+        scheduledTime: b.scheduledTime ?? 'Unknown', // Safe access
         status: b.status
     })),
     // Include activity log if it exists
@@ -366,7 +348,7 @@ const getRelevantData = (userMessage: string) => {
         flightNumber: f.flightNumber,
         departure: f.departure,
         arrival: f.arrival,
-        scheduledTime: f.scheduledTime
+        scheduledTime: f.scheduledTime ?? 'Unknown' // Safe access
     })),
     pendingBooking: conversationContext.pendingBookingDetails,
     actionLog: conversationContext.actionLog || [] // Include action log in conversation context
