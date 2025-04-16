@@ -10,7 +10,7 @@ export interface ActionResultProps {
   result: ActionResult;
   onConfirmBooking?: (flightNumber: string, seatClass: string, confirmationData: Message['pendingConfirmation']) => void;
   onCancelBooking?: () => void;
-  onConfirmCancellation?: (bookingReference: string) => void;
+  onConfirmCancellation?: (confirmationData: Message['pendingConfirmation']) => void;
   onCancelCancellation?: () => void;
   onConfirmChange?: (bookingReference: string, newFlightNumber: string) => void;
   onCancelChange?: () => void;
@@ -351,8 +351,14 @@ Would you like me to confirm this flight change?`;
               bookingReference={actionResult.pendingAction.bookingReference}
               bookingDetails={data}
               onConfirm={() => {
-                if (onConfirmCancellation && actionResult.pendingAction) {
-                  onConfirmCancellation(actionResult.pendingAction.bookingReference as string);
+                if (onConfirmCancellation && actionResult.pendingAction?.bookingReference) {
+                  // Construct the confirmationData object
+                  const confirmationData = {
+                    type: 'CANCEL_BOOKING' as const,
+                    bookingReference: actionResult.pendingAction.bookingReference,
+                    // Add any other necessary fields if the type expects them
+                  };
+                  onConfirmCancellation(confirmationData); // <-- Pass confirmationData
                   setActionComplete(true);
                   setActionResult({
                     success: true,

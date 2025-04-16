@@ -15,9 +15,11 @@ export interface Message {
     newFlightNumber?: string;
     newFlightDetails?: FlightData;
     newSeatNumber?: string;
-    targetClass?: string;
+    targetClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
     seatPreference?: 'window' | 'aisle' | 'middle' | 'any';
     bookingDetails?: BookingData;
+    targetSeat?: string;
+    currentClass?: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
   };
 }
 
@@ -53,6 +55,7 @@ export interface BookingData {
   flightNumber: string;
   passengerName: string;
   date: string;
+  scheduledTime?: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   seatInfo?: SeatInfo;
   checkedIn: boolean;

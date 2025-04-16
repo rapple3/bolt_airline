@@ -13,11 +13,11 @@ interface ChatMessageProps {
   message: Message;
   onConfirmBooking?: (flightNumber: string, seatClass: string, confirmationData: Message['pendingConfirmation']) => void;
   onCancelBooking?: () => void;
-  onConfirmCancellation?: (bookingReference: string) => void;
+  onConfirmCancellation?: (confirmationData: Message['pendingConfirmation']) => void;
   onCancelCancellation?: () => void;
-  onConfirmChange?: (bookingReference: string, newFlightNumber: string) => void;
+  onConfirmChange?: (confirmationData: Message['pendingConfirmation']) => void;
   onCancelChange?: () => void;
-  onConfirmSeatChange?: (bookingReference: string, seatNumber: string, newClass: string) => void;
+  onConfirmSeatChange?: (confirmationData: Message['pendingConfirmation']) => void;
   onCancelSeatChange?: () => void;
   onHandoffRequest?: (reason: string) => void;
 }
@@ -101,8 +101,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               bookingReference={pendingConfirmation.bookingReference}
               bookingDetails={getBookingDetails(pendingConfirmation.bookingReference)}
               onConfirm={() => {
-                if (onConfirmCancellation) {
-                  onConfirmCancellation(pendingConfirmation.bookingReference as string);
+                if (onConfirmCancellation && pendingConfirmation.type === 'CANCEL_BOOKING') {
+                  onConfirmCancellation(pendingConfirmation);
                 }
               }}
               onCancel={onCancelCancellation || (() => {})}
@@ -124,11 +124,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               newFlightNumber={pendingConfirmation.newFlightNumber}
               newFlightDetails={pendingConfirmation.newFlightDetails}
               onConfirm={() => {
-                if (onConfirmChange) {
-                  onConfirmChange(
-                    pendingConfirmation.bookingReference as string,
-                    pendingConfirmation.newFlightNumber as string
-                  );
+                if (onConfirmChange && pendingConfirmation.type === 'CHANGE_FLIGHT') {
+                  onConfirmChange(pendingConfirmation);
                 }
               }}
               onCancel={onCancelChange || (() => {})}
@@ -143,11 +140,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         
         const handleSeatConfirm = (seatNumber: string, upgradeClass?: string) => {
           if (onConfirmSeatChange && pendingConfirmation?.bookingReference) {
-            onConfirmSeatChange(
-              pendingConfirmation.bookingReference,
-              seatNumber,
-              upgradeClass || ''
-            );
+            // Construct the necessary confirmationData to pass
+            // We need bookingReference, targetSeat, and optionally targetClass
+            const confirmationData: Message['pendingConfirmation'] = {
+              ...pendingConfirmation, // Start with existing data
+              type: 'CHANGE_SEAT', // Ensure type is correct
+              targetSeat: seatNumber, // The seat selected in the component
+              targetClass: upgradeClass as Message['pendingConfirmation']['targetClass'] // The optional upgrade class
+            };
+            onConfirmSeatChange(confirmationData); // <-- Pass confirmationData
           }
         };
         
