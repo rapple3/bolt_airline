@@ -306,7 +306,7 @@ function App() {
     });
     
     // Add a system message for the AI
-    addSystemMessage(`User confirmed booking for flight ${flightNumber} in ${validClass} class. Booking reference: ${bookingId}.`);
+    addSystemMessage(`Flight booking confirmed: ${flightNumber} from ${flightDetails.departure} to ${flightDetails.arrival} on ${formattedDate} at ${formattedTime} in ${validClass} class. Booking reference: ${bookingId}.`);
     
     // Add confirmation message with detailed information
     const confirmationMessage: Message = {
@@ -366,7 +366,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`User cancelled the flight booking process without confirming.`);
+    addSystemMessage(`Flight booking process cancelled: User started but did not complete the booking process. No reservation was created.`);
     
     // Update messages to remove pending confirmation
     setMessages(prev => {
@@ -420,7 +420,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`User cancelled booking with reference ${bookingReference}.`);
+    addSystemMessage(`Booking cancellation completed: Booking reference ${bookingReference} has been cancelled. The user will receive an eCredit or refund according to the fare rules.`);
         
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -468,7 +468,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`User discarded the booking cancellation request.`);
+    addSystemMessage(`Cancellation request withdrawn: User decided not to proceed with cancellation of their booking. The original booking remains active and unchanged.`);
     
     // Update messages to remove pending confirmation
     setMessages(prev => {
@@ -522,7 +522,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`User changed booking ${bookingReference} to flight ${newFlightNumber}.`);
+    addSystemMessage(`Flight change completed: Booking ${bookingReference} has been changed to flight ${newFlightNumber}. All passenger and payment details have been transferred to the new flight.`);
         
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -571,7 +571,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`User cancelled the flight change request.`);
+    addSystemMessage(`Flight change request withdrawn: User decided not to proceed with changing their flight. The original flight booking remains active and unchanged.`);
     
     // Update messages to remove pending confirmation
     setMessages(prev => {
@@ -631,7 +631,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
       const displayClass = newClass || pendingMessage.pendingConfirmation.targetClass || 'economy';
       
       // Add a system message for the AI
-      addSystemMessage(`User changed seat to ${seatNumber}${newClass ? ` in ${displayClass} class` : ''} for booking ${bookingReference}.`);
+      addSystemMessage(`Seat change completed: For booking ${bookingReference}, seat has been changed to ${seatNumber}${newClass ? ` with upgrade to ${displayClass} class` : ''}. Seat map has been updated and confirmation will be sent via email.`);
             
       // Add confirmation message
       const confirmationMessage: Message = {
@@ -694,7 +694,7 @@ Your booking is confirmed and has been added to your profile. Is there anything 
     }
     
     // Add a system message for the AI
-    addSystemMessage(`User cancelled the seat change request.`);
+    addSystemMessage(`Seat change request withdrawn: User decided not to proceed with changing their seat. The original seat assignment remains active and unchanged.`);
     
     // Update messages to remove pending confirmation
     setMessages(prev => {

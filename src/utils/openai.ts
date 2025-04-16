@@ -18,6 +18,7 @@ interface ConversationContext {
   };
   recentlyMentionedFlights: Map<string, FlightData>; // Map of flight numbers to flight data
   recentlyMentionedBookings: Map<string, BookingData>; // Map of booking references to booking data
+  actionLog?: { timestamp: string; action: string }[]; // Log of user actions from UI interactions
   
   // New fields for tracking required information
   requiredInfo: {
@@ -62,6 +63,13 @@ PERSONALITY TRAITS:
 - Attentive to detail: Prioritize accuracy in flight information and booking details
 - Globally-minded: Recognize Delta's worldwide network and diverse customer base
 - Progressive conversation: Gather information naturally through conversation
+
+ACTION LOGS:
+- Pay special attention to any messages with [ACTION_LOG] prefix in the conversation history
+- These logs contain information about user interactions with the system's UI
+- They provide critical details about flight bookings, cancellations, and changes
+- When a user asks about recent actions, reference these logs for the most accurate information
+- Trust these action logs over other information when there are discrepancies
 
 INFORMATION GATHERING GUIDELINES:
 - Always acknowledge information provided by the user before asking for more
@@ -360,7 +368,8 @@ const getRelevantData = (userMessage: string) => {
         arrival: f.arrival,
         scheduledTime: f.scheduledTime
     })),
-    pendingBooking: conversationContext.pendingBookingDetails
+    pendingBooking: conversationContext.pendingBookingDetails,
+    actionLog: conversationContext.actionLog || [] // Include action log in conversation context
   };
   
   // Only include detailed flight info if the message is asking about flights
@@ -742,7 +751,17 @@ export const resetChatHistory = () => {
 
 // This function adds a system message to inform the AI about user actions
 export const addSystemMessage = (actionMessage: string) => {
-  // Add a system message to the history
-  messageHistory.push({ role: 'system', content: actionMessage });
+  // Add a system message to the history with a special prefix to make it more prominent
+  messageHistory.push({ role: 'system', content: `[ACTION_LOG] ${actionMessage}` });
+  
+  // Also store this in a dedicated array in the conversation context to ensure it's included in context data
+  if (!conversationContext.actionLog) {
+    conversationContext.actionLog = [];
+  }
+  conversationContext.actionLog.push({
+    timestamp: new Date().toISOString(),
+    action: actionMessage
+  });
+  
   console.log('Added system message to chat history:', actionMessage);
 };
