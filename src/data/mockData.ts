@@ -1,6 +1,4 @@
 import { FlightData, BookingData, LoyaltyData, UserProfile, SeatInfo } from '../types';
-import { mockUsers } from './mock/users';
-import { mockBookings as originalMockBookings } from './mock/bookings';
 
 // Cities with airport codes
 const airports = [
@@ -199,11 +197,6 @@ const getDateXDaysFromNowISO = (days: number): string => {
   return date.toISOString();
 };
 
-// Process original mock bookings to include scheduledTime ISO string
-export const mockBookings: BookingData[] = originalMockBookings.map(booking => ({
-  ...booking,
-  scheduledTime: getDateXDaysFromNowISO(parseInt(booking.date.split('-')[2]) % 30 || 5) // Generate based on old date
-}));
 
 // Generate a booking
 const generateBooking = (id: number, customerId: string, flight: FlightData): BookingData => {
@@ -399,14 +392,21 @@ export const mockFlights = initialData.flights;
 export const mockBookings = initialData.bookings;
 export const mockLoyalty = initialData.loyalty;
 export const mockUserProfiles = initialData.userProfiles;
-export const mockUserProfile: UserProfile = {
+// Find the specific user profile generated earlier for USR001 to use as the default
+const defaultUserProfile = initialData.userProfiles.find(p => p.customerId === 'USR001');
+
+export const mockUserProfile: UserProfile = defaultUserProfile || {
+  // Fallback default if USR001 wasn't generated for some reason
   customerId: 'USR001',
   name: 'Michael Thompson',
   email: 'michael.thompson@example.com',
+  avatarUrl: '/avatars/avatar1.png', // Added missing property
+  loyaltyTier: 'silver', // Added missing property, provide a default tier
   loyaltyPoints: 25600,
   preferences: {
-    seat: 'aisle',
-    meal: 'vegetarian'
+    seatPreference: 'aisle', // Correct key
+    mealPreference: 'vegetarian',
+    specialAssistance: false // Assuming boolean based on UserProfile type usage elsewhere
   },
   upcomingFlights: mockBookings.filter(b => b.customerId === 'USR001'),
   activityLog: [
