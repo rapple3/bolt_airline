@@ -129,7 +129,7 @@ export default function UserProfileCard({ profile: propProfile }: UserProfileCar
                             ? 'bg-red-100 text-red-700'
                             : 'bg-green-100 text-green-700'
                         }`}>
-                          {flight.status === 'confirmed' ? 'Upcoming' : flight.status}
+                          {flight.status}
                         </span>
                       </div>
                       {flight.seatInfo && (

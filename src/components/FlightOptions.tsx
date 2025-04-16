@@ -13,11 +13,11 @@ interface FlightOption {
   economySeats: number;
   businessSeats: number;
   firstClassSeats: number;
-  prices: {
-    economy: number;
-    comfortPlus: number;
-    first: number;
-    deltaOne?: number;
+  seats: {
+    economy: Array<{ price: number; status: string }>;
+    comfortPlus: Array<{ price: number; status: string }>;
+    first: Array<{ price: number; status: string }>;
+    deltaOne: Array<{ price: number; status: string }>;
   };
 }
 
@@ -109,37 +109,37 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
             <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">Economy</p>
-                <p className="font-medium">{flight.economySeats} seats</p>
+                <p className="font-medium">{flight.seats.economy.length} seats</p>
                 <div className="flex items-center justify-center mt-1 text-green-600">
                   <DollarSign className="w-3 h-3" />
-                  <span>{flight.prices.economy}</span>
+                  <span>{flight.seats.economy[0]?.price || 'N/A'}</span>
                 </div>
               </div>
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">Comfort+</p>
-                <p className="font-medium">{flight.businessSeats} seats</p>
+                <p className="font-medium">{flight.seats.comfortPlus.length} seats</p>
                 <div className="flex items-center justify-center mt-1 text-green-600">
                   <DollarSign className="w-3 h-3" />
-                  <span>{flight.prices.comfortPlus}</span>
+                  <span>{flight.seats.comfortPlus[0]?.price || 'N/A'}</span>
                 </div>
               </div>
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">First Class</p>
-                <p className="font-medium">{flight.firstClassSeats} seats</p>
+                <p className="font-medium">{flight.seats.first.length} seats</p>
                 <div className="flex items-center justify-center mt-1 text-green-600">
                   <DollarSign className="w-3 h-3" />
-                  <span>{flight.prices.first}</span>
+                  <span>{flight.seats.first[0]?.price || 'N/A'}</span>
                 </div>
               </div>
             </div>
             
-            {selectedFlight === flight.flightNumber && flight.prices.deltaOne && (
+            {selectedFlight === flight.flightNumber && flight.seats.deltaOne.length > 0 && (
               <div className="mt-2">
                 <div className="text-center p-2 bg-blue-50 rounded-lg">
                   <p className="text-blue-600">Delta One</p>
                   <div className="flex items-center justify-center mt-1 text-green-600">
                     <DollarSign className="w-3 h-3" />
-                    <span>{flight.prices.deltaOne}</span>
+                    <span>{flight.seats.deltaOne[0]?.price || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -169,7 +169,7 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                     <span>Economy</span>
                     <div className="ml-2 flex items-center">
                       <DollarSign className="w-3 h-3" />
-                      <span>{flight.prices.economy}</span>
+                      <span>{flight.seats.economy[0]?.price || 'N/A'}</span>
                     </div>
                   </button>
                   <button
@@ -183,7 +183,7 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                     <span>Comfort+</span>
                     <div className="ml-2 flex items-center">
                       <DollarSign className="w-3 h-3" />
-                      <span>{flight.prices.comfortPlus}</span>
+                      <span>{flight.seats.comfortPlus[0]?.price || 'N/A'}</span>
                     </div>
                   </button>
                   <button
@@ -197,10 +197,10 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                     <span>First Class</span>
                     <div className="ml-2 flex items-center">
                       <DollarSign className="w-3 h-3" />
-                      <span>{flight.prices.first}</span>
+                      <span>{flight.seats.first[0]?.price || 'N/A'}</span>
                     </div>
                   </button>
-                  {flight.prices.deltaOne && (
+                  {flight.seats.deltaOne.length > 0 && (
                     <button
                       className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
                         selectedClass === 'deltaOne'
@@ -212,7 +212,7 @@ export const FlightOptions: React.FC<FlightOptionsProps> = ({
                       <span>Delta One</span>
                       <div className="ml-2 flex items-center">
                         <DollarSign className="w-3 h-3" />
-                        <span>{flight.prices.deltaOne}</span>
+                        <span>{flight.seats.deltaOne[0]?.price || 'N/A'}</span>
                       </div>
                     </button>
                   )}
