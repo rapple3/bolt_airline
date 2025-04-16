@@ -558,26 +558,48 @@ export const getChatResponse = async (userMessage: string): Promise<{
         
         // Format flight options in a more detailed way
         let flightOptions = '';
-        if (Array.isArray(searchResult.data)) {
+        if (Array.isArray(searchResult.data) && searchResult.data.length > 0) {
           flightOptions = searchResult.data.map((flight: any, index: number) => {
-            const departTime = new Date(flight.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const duration = flight.duration;
-            const airline = flight.airline;
+            // Use optional chaining and nullish coalescing to handle potential missing data
+            const departTime = flight.scheduledTime ? new Date(flight.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+            const duration = flight.duration || 'N/A';
             
-            // Calculate price ranges
-            const economyPrices = flight.seats.economy.map((s: any) => s.price);
-            const minPrice = Math.min(...economyPrices);
-            const maxPrice = Math.max(...flight.seats.deltaOne?.length ? 
-              flight.seats.deltaOne.map((s: any) => s.price) : 
-              flight.seats.first.map((s: any) => s.price));
+            // Make sure all seat arrays exist
+            const safeSeats = {
+              economy: Array.isArray(flight.seats?.economy) ? flight.seats.economy : [],
+              comfortPlus: Array.isArray(flight.seats?.comfortPlus) ? flight.seats.comfortPlus : [],
+              first: Array.isArray(flight.seats?.first) ? flight.seats.first : [],
+              deltaOne: Array.isArray(flight.seats?.deltaOne) ? flight.seats.deltaOne : []
+            };
             
-            return `\nOption ${index + 1}: ${airline} Flight ${flight.flightNumber}
-• Departure: ${departTime} from Terminal ${flight.terminal}
+            // Calculate price ranges safely
+            const economyPrices = safeSeats.economy.map((s: any) => s.price).filter((p: number) => !isNaN(p));
+            const deltaOnePrices = safeSeats.deltaOne.map((s: any) => s.price).filter((p: number) => !isNaN(p));
+            const firstPrices = safeSeats.first.map((s: any) => s.price).filter((p: number) => !isNaN(p));
+            
+            const minPrice = economyPrices.length > 0 ? Math.min(...economyPrices) : 0;
+            const maxPriceOptions = [...(deltaOnePrices.length > 0 ? deltaOnePrices : []), 
+                                    ...(firstPrices.length > 0 ? firstPrices : [])];
+            const maxPrice = maxPriceOptions.length > 0 ? Math.max(...maxPriceOptions) : 0;
+            
+            // List available classes safely
+            const availableClasses = Object.keys(safeSeats)
+              .filter(c => {
+                return c === 'economy' || c === 'comfortPlus' || c === 'first' || c === 'deltaOne' ? 
+                  safeSeats[c as keyof typeof safeSeats].length > 0 : false;
+              })
+              .join(', ');
+            
+            return `\nOption ${index + 1}: Flight ${flight.flightNumber}
+• Departure: ${departTime}
+• From: ${flight.departure || 'N/A'} To: ${flight.arrival || 'N/A'}
 • Duration: ${duration}
-• Aircraft: ${flight.aircraft}
-• Prices: $${minPrice} - $${maxPrice}
-• Available Classes: ${Object.keys(flight.seats).filter(c => flight.seats[c].length > 0).join(', ')}`;
+• Aircraft: ${flight.aircraft || 'N/A'}
+• Prices: $${minPrice || 'N/A'} - $${maxPrice || 'N/A'}
+• Available Classes: ${availableClasses || 'N/A'}`;
           }).join('\n');
+        } else {
+          flightOptions = "\nNo flights found matching your criteria.";
         }
         
         // Check if we need to ask about preferences

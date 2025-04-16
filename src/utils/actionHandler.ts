@@ -291,11 +291,19 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
             // 25% of seats are occupied
             const isOccupied = Math.random() < 0.25;
             
+            // Generate features based on class
+            const features: string[] = [];
+            if (classType !== 'economy') features.push('Extra Legroom');
+            if (classType === 'deltaOne') features.push('Lie-flat Bed', 'Premium Dining');
+            if ((i % 6) === 0 || (i % 6) === 5) features.push('Window');
+            if ((i % 6) === 2 || (i % 6) === 3) features.push('Aisle');
+            
             seats.push({
               seatNumber: `${row}${col}`,
               class: classType,
               status: isOccupied ? 'occupied' : 'available',
-              price: basePrice + Math.floor(Math.random() * 50)
+              price: basePrice + Math.floor(Math.random() * 50),
+              features: features
             });
           }
           
@@ -309,7 +317,7 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
           departure: from,
           arrival: to,
           scheduledTime: flightDate.toISOString(),
-          status: 'On Time',
+          status: 'on time', // lowercase to match the FlightData interface
           duration,
           aircraft: `Boeing ${737 + Math.floor(Math.random() * 40) * 10}`,
           gate: `${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.floor(Math.random() * 20) + 1}`,
@@ -342,6 +350,7 @@ const searchFlights = (params: Record<string, string>): ActionResult => {
       }
     }
     
+    // Update the format for available classes in the output
     // Limit to max 5 flights to not overwhelm the user
     const flightsToShow = filteredFlights.slice(0, 5);
     
