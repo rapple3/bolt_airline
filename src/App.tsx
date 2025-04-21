@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plane, RotateCcw, Search, MapPin, Menu, X, User, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
 import UserProfileCard from './components/UserProfileCard';
 import UserSelector from './components/UserSelector';
 import { HandoffModal } from './components/HandoffModal';
-import { SeatChangeConfirmation } from './components/SeatChangeConfirmation';
 import { getChatResponse, resetChatHistory, addSystemMessage } from './utils/openai';
 import { mockBookings, mockUserProfile } from './data/mockData';
 import { Message, AgentHandoff, UserProfile } from './types';
@@ -25,6 +24,15 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [testMenuOpen, setTestMenuOpen] = useState(false);
   const [currentSystemDate, setCurrentSystemDate] = useState<Date>(dataManager.getCurrentDate());
+
+  // Refs for auto-scroll and input focus
+  const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const inputRef = useRef<null | HTMLInputElement>(null); // Ref for the input element
+
+  // Effect for auto-scrolling
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]); // Trigger scroll on new messages
 
   useEffect(() => {
     // Subscribe to user profile changes
@@ -188,8 +196,9 @@ function App() {
       handleAgentHandoff("Technical error occurred during chat interaction");
     } finally {
       setIsLoading(false);
+      // Re-focus the input after sending/loading finishes
+      inputRef.current?.focus(); // Focus the input using the ref
     }
-    console.log("[handleConfirmBooking] Function finished executing.");
   };
 
   // Handle reset data button click
@@ -394,6 +403,7 @@ function App() {
        setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false); // Hide loading indicator
+      inputRef.current?.focus(); // Re-focus input here too
     }
   };
 
@@ -985,6 +995,8 @@ function App() {
                 <div className="animate-pulse text-gray-500">AI is typing...</div>
               </div>
             )}
+            {/* Dummy div at the end for auto-scroll target */}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Chat input */}
@@ -997,7 +1009,11 @@ function App() {
                 Reset Conversation
               </button>
             </div>
-            <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
+            <ChatInput
+              ref={inputRef}
+              onSendMessage={handleSendMessage}
+              disabled={isLoading}
+            />
           </div>
         </main>
       </div>
