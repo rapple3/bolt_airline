@@ -12,5 +12,5 @@ export interface BookingData {
   checkedIn: boolean;
   class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';
   createdAt?: string;
-  fareType?: 'refundable' | 'non-refundable';
+  fareType?: 'basic' | 'main' | 'refundable' | 'non-refundable';
 } 

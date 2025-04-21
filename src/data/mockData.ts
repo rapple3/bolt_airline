@@ -387,28 +387,49 @@ export const generateMockData = (
 // Generate the initial mock data
 const initialData = generateMockData();
 
+// --- Adjust upcoming flights for each user --- 
+initialData.userProfiles.forEach((profile, index) => {
+  // Assign a different number of flights (0 to 5) based on user index
+  const targetFlightCount = index % 6;
+  
+  // Get all bookings generated for this specific user
+  const allUserBookings = initialData.bookings.filter(b => b.customerId === profile.customerId);
+  
+  // Slice the bookings to get the desired number of upcoming flights
+  const assignedUpcomingFlights = allUserBookings
+    .filter(b => b.status !== 'cancelled') // Ensure we only take non-cancelled ones
+    .slice(0, targetFlightCount);
+  
+  // Update the profile object directly within the initialData array
+  profile.upcomingFlights = assignedUpcomingFlights;
+  
+  console.log(`MockData: Set upcoming flights for ${profile.name} (${profile.customerId}) to ${assignedUpcomingFlights.length}`);
+});
+// --- End adjustment --- 
+
 // Export the mock data
 export const mockFlights = initialData.flights;
 export const mockBookings = initialData.bookings;
 export const mockLoyalty = initialData.loyalty;
 export const mockUserProfiles = initialData.userProfiles;
 // Find the specific user profile generated earlier for USR001 to use as the default
-const defaultUserProfile = initialData.userProfiles.find(p => p.customerId === 'USR001');
+const defaultUserProfile = initialData.userProfiles.find(p => p.customerId === 'CUST001'); // Changed to CUST001 as USR001 doesn't exist
 
 export const mockUserProfile: UserProfile = defaultUserProfile || {
-  // Fallback default if USR001 wasn't generated for some reason
-  customerId: 'USR001',
-  name: 'Michael Thompson',
-  email: 'michael.thompson@example.com',
-  avatarUrl: '/avatars/avatar1.png', // Added missing property
-  loyaltyTier: 'silver', // Added missing property, provide a default tier
-  loyaltyPoints: 25600,
+  // Fallback default if CUST001 wasn't found
+  customerId: 'CUST001', // Use the actual customer ID
+  name: 'Michael Johnson', // Match the name for CUST001
+  email: 'michael.johnson@example.com',
+  avatarUrl: '/avatars/avatar1.png', 
+  loyaltyTier: 'blue', // Default tier
+  loyaltyPoints: 5000, // Default points
   preferences: {
-    seatPreference: 'aisle', // Correct key
-    mealPreference: 'vegetarian',
-    specialAssistance: false // Assuming boolean based on UserProfile type usage elsewhere
+    seatPreference: 'aisle',
+    mealPreference: 'standard',
+    specialAssistance: false
   },
-  upcomingFlights: mockBookings.filter(b => b.customerId === 'USR001'),
+  // Ensure the fallback also gets correct flight count if CUST001 was generated
+  upcomingFlights: initialData.userProfiles.find(p => p.customerId === 'CUST001')?.upcomingFlights || [], 
   activityLog: [
     {
       timestamp: getDateXDaysFromNowISO(-2),
