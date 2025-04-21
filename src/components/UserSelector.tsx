@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { mockUserProfiles } from '../data/mockData';
+// import { mockUserProfiles } from '../data/mockData'; // Remove direct import of mock data
+import { dataManager } from '../utils/dataManager'; // Import dataManager
 import { ChevronDown, Award, User } from 'lucide-react';
 
 interface UserSelectorProps {
@@ -10,11 +11,29 @@ interface UserSelectorProps {
 
 export default function UserSelector({ onSelectUser, currentUserId }: UserSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  // State to hold the profiles fetched from dataManager
+  const [profiles, setProfiles] = useState<UserProfile[]>([]); 
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  // Use the mockUserProfiles to get the list of profiles
-  const profiles = mockUserProfiles;
-  const currentProfile = profiles.find(p => p.customerId === currentUserId) || profiles[0];
+  // Effect to fetch profiles and subscribe to updates
+  useEffect(() => {
+    // Initial fetch
+    const fetchedProfiles = dataManager.getAllUserProfilesWithDetails();
+    setProfiles(fetchedProfiles);
+
+    // Subscribe to changes in dataManager
+    const unsubscribe = dataManager.subscribe(() => {
+      console.log('UserSelector: dataManager updated, re-fetching profiles...');
+      const updatedProfiles = dataManager.getAllUserProfilesWithDetails();
+      setProfiles(updatedProfiles);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []); // Empty dependency array ensures this runs only once on mount and cleans up on unmount
+  
+  // Find the current profile from the state, fallback safely if profiles array is empty initially
+  const currentProfile = profiles.find(p => p.customerId === currentUserId) || (profiles.length > 0 ? profiles[0] : null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -37,6 +56,11 @@ export default function UserSelector({ onSelectUser, currentUserId }: UserSelect
       default: return 'text-amber-700'; // blue tier
     }
   };
+
+  // Handle case where currentProfile might be null initially
+  if (!currentProfile) {
+    return <div>Loading user...</div>; // Or some other loading indicator
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -85,7 +109,8 @@ export default function UserSelector({ onSelectUser, currentUserId }: UserSelect
                     <p className="text-sm text-gray-500 capitalize">{profile.loyaltyTier} Member</p>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    {profile.upcomingFlights.length} upcoming flights
+                    {/* Use the length from the fetched profile */}
+                    {profile.upcomingFlights ? profile.upcomingFlights.length : 0} upcoming flights
                   </p>
                 </div>
               </div>

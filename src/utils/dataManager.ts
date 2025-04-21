@@ -131,11 +131,30 @@ class DataManager {
     return this.userProfile;
   }
 
+  // ---> NEW METHOD TO GET ALL PROFILES WITH CURRENT DATA <--- 
+  getAllUserProfilesWithDetails(): UserProfile[] {
+    console.log('DataManager: Fetching all user profiles with current booking counts.');
+    // Get the base profiles from the mock data
+    const baseProfiles = mockUserProfiles;
+    // Map over them and update their upcomingFlights based on the current state of this.bookings
+    return baseProfiles.map(profile => {
+      const currentBookingsForUser = this.bookings.filter(
+        b => b.customerId === profile.customerId && b.status !== 'cancelled'
+      );
+      return {
+        ...profile,
+        upcomingFlights: currentBookingsForUser
+      };
+    });
+  }
+  // ---> END NEW METHOD <--- 
+
   setUserProfile(profile: UserProfile): void {
     console.log(`DataManager: Setting user profile to ${profile.name} (${profile.customerId})`);
     this.userProfile = profile;
     // Update upcoming flights in the profile to match the main bookings list for this user
-    this.userProfile.upcomingFlights = this.bookings.filter(b => b.customerId === profile.customerId);
+    // Ensure we filter by the correct profile ID being set
+    this.userProfile.upcomingFlights = this.bookings.filter(b => b.customerId === profile.customerId && b.status !== 'cancelled');
     this.saveToStorage(); // Save profile changes for the session
     this.notifySubscribers();
   }
@@ -251,10 +270,12 @@ class DataManager {
       flightNumber,
       passengerName: this.userProfile.name,
       scheduledTime: flight.scheduledTime,
+      date: flight.scheduledTime,
       status: 'confirmed',
       seatInfo: seatInfoForBooking,
       checkedIn: false,
-      class: seatClass
+      class: seatClass,
+      createdAt: new Date().toISOString()
     };
     
     console.log(`DataManager: Creating new booking ${newBooking.bookingReference} for flight ${flightNumber}`);

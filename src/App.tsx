@@ -320,6 +320,7 @@ function App() {
     addSystemMessage(systemLogMessage);
 
     // Add visible debug message
+    /*
     const debugMessage: Message = {
       id: (Date.now() + 1).toString(), 
       type: 'bot',
@@ -328,6 +329,7 @@ function App() {
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
+    */
 
     // Add user-facing confirmation message
     const confirmationMessage: Message = {
@@ -350,18 +352,22 @@ function App() {
       }
     };
 
-    // Update messages state first, adding both debug and confirmation
-    // PROBLEM: We no longer have pendingMessage.id to remove the original confirmation prompt.
-    // Quick Fix: Filter out *any* message that has a pendingConfirmation of type BOOK_FLIGHT.
-    // Better Fix: Pass the original message ID along with confirmationData.
+    // Update messages state first, adding confirmation and potentially debug log
+    // Modify the original message to remove pending confirmation, instead of filtering it out.
     setMessages(prev => {
-      // REMOVE: console.log('[handleConfirmBooking] Inside setMessages - prev state:', prev);
-      const updatedMessages = prev.filter(msg => 
-        !(msg.pendingConfirmation?.type === 'BOOK_FLIGHT')
-      );
-      const newState = [...updatedMessages, debugMessage, confirmationMessage];
-      // REMOVE: console.log('[handleConfirmBooking] Inside setMessages - new state:', newState);
-      // Add both new messages at once
+      const updatedMessages = prev.map(msg => {
+        // Find the message that triggered this confirmation
+        if (msg.pendingConfirmation && 
+            msg.pendingConfirmation.type === 'BOOK_FLIGHT' && 
+            msg.pendingConfirmation.flightDetails?.flightNumber === flightNumber) { // Match based on confirmation data
+          // Return a new object without pendingConfirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest; 
+        }
+        return msg;
+      });
+      // Add the new confirmation message
+      const newState = [...updatedMessages, confirmationMessage];
       return newState; 
     });
 
@@ -422,6 +428,7 @@ function App() {
     addSystemMessage(systemLogMessage);
 
     // Add a visible debug message to the chat UI
+    /*
     const debugMessage: Message = {
       id: (Date.now() + 1).toString(),
       type: 'bot',
@@ -430,6 +437,7 @@ function App() {
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
+    */
     
     // Add user-facing cancellation message
     const cancellationUIMessage: Message = {
@@ -442,18 +450,19 @@ function App() {
     // Update messages to remove pending confirmation
     setMessages(prev => {
       const updatedMessages = prev.map(msg => {
-        if (msg.id === pendingMessage.id) {
-          // Remove the pending confirmation
+        // Find the message with the pending confirmation we are cancelling
+        if (msg.id === pendingMessage.id) { 
+          // Return a new object without pendingConfirmation
           const { pendingConfirmation, ...rest } = msg;
           return rest;
         }
         return msg;
-      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
+      });
+      // Add the cancellation UI message separately
+      return [...updatedMessages, cancellationUIMessage]; 
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
-      
-      return updatedMessages;
     });
   };
 
@@ -489,6 +498,7 @@ function App() {
     addSystemMessage(systemLogMessage);
 
     // Add a visible debug message to the chat UI
+    /*
     const debugMessage: Message = {
       id: (Date.now() + 1).toString(),
       type: 'bot',
@@ -497,6 +507,7 @@ function App() {
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
+    */
         
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -516,10 +527,19 @@ function App() {
     
     // Update messages and remove pending confirmation, then refresh user profile
     setMessages(prev => {
-      const updatedMessages = prev.filter(msg => 
-        !(msg.pendingConfirmation?.type === 'CANCEL_BOOKING')
-      );
-      const newState = [...updatedMessages, debugMessage, confirmationMessage]; // Add both messages
+      const updatedMessages = prev.map(msg => {
+        // Find the message that triggered this confirmation
+        if (msg.pendingConfirmation && 
+            msg.pendingConfirmation.type === 'CANCEL_BOOKING' && 
+            msg.pendingConfirmation.bookingReference === bookingReference) { // Match based on confirmation data
+          // Return a new object without pendingConfirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      });
+      // Add the new confirmation message
+      const newState = [...updatedMessages, confirmationMessage];
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -544,6 +564,7 @@ function App() {
     addSystemMessage(systemLogMessage);
 
     // Add a visible debug message to the chat UI
+    /*
     const debugMessage: Message = {
       id: (Date.now() + 1).toString(),
       type: 'bot',
@@ -552,6 +573,7 @@ function App() {
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
+    */
     
     // Add user-facing message
     const cancellationUIMessage: Message = {
@@ -570,7 +592,7 @@ function App() {
           return rest;
         }
         return msg;
-      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
+      }).concat(cancellationUIMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -611,6 +633,7 @@ function App() {
     addSystemMessage(systemLogMessage);
 
     // Add a visible debug message to the chat UI
+    /*
     const debugMessage: Message = {
       id: (Date.now() + 1).toString(),
       type: 'bot',
@@ -619,6 +642,7 @@ function App() {
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
+    */
         
     // Add confirmation message
     const confirmationMessage: Message = {
@@ -639,10 +663,19 @@ function App() {
 
     // Update messages and remove pending confirmation, then refresh user profile
     setMessages(prev => {
-      const updatedMessages = prev.filter(msg => 
-        !(msg.pendingConfirmation?.type === 'CHANGE_FLIGHT')
-      );
-      const newState = [...updatedMessages, debugMessage, confirmationMessage]; // Add both messages
+      const updatedMessages = prev.map(msg => {
+        // Find the message that triggered this confirmation
+        if (msg.pendingConfirmation && 
+            msg.pendingConfirmation.type === 'CHANGE_FLIGHT' && 
+            msg.pendingConfirmation.bookingReference === bookingReference) { // Match based on confirmation data
+          // Return a new object without pendingConfirmation
+          const { pendingConfirmation, ...rest } = msg;
+          return rest;
+        }
+        return msg;
+      });
+      // Add the new confirmation message
+      const newState = [...updatedMessages, confirmationMessage];
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -667,6 +700,7 @@ function App() {
     addSystemMessage(systemLogMessage);
 
     // Add a visible debug message to the chat UI
+    /*
     const debugMessage: Message = {
       id: (Date.now() + 1).toString(),
       type: 'bot',
@@ -675,6 +709,7 @@ function App() {
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
+    */
     
     // Add user-facing message
     const cancellationUIMessage: Message = {
@@ -693,7 +728,7 @@ function App() {
           return rest;
         }
         return msg;
-      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
+      }).concat(cancellationUIMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
@@ -741,6 +776,7 @@ function App() {
       addSystemMessage(systemLogMessage);
 
       // Add a visible debug message to the chat UI
+      /*
       const debugMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
@@ -749,6 +785,7 @@ function App() {
         actionResult: undefined,
         pendingConfirmation: undefined,
       };
+      */
             
       // Add confirmation message
       const confirmationMessage: Message = {
@@ -773,7 +810,8 @@ function App() {
         const updatedMessages = prev.filter(msg => 
           !(msg.pendingConfirmation?.type === 'CHANGE_SEAT')
         );
-        const newState = [...updatedMessages, debugMessage, confirmationMessage]; // Add both messages
+        // const newState = [...updatedMessages, debugMessage, confirmationMessage]; // Commented out adding debugMessage
+        const newState = [...updatedMessages, confirmationMessage]; // Add both messages
         
         // Force refresh the current user data *after* updating messages
         setCurrentUser(dataManager.getUserProfile());
@@ -811,6 +849,7 @@ function App() {
     addSystemMessage(systemLogMessage);
 
     // Add a visible debug message to the chat UI
+    /*
     const debugMessage: Message = {
       id: (Date.now() + 1).toString(),
       type: 'bot',
@@ -819,6 +858,7 @@ function App() {
       actionResult: undefined,
       pendingConfirmation: undefined,
     };
+    */
     
     // Add user-facing message
     const cancellationUIMessage: Message = {
@@ -837,7 +877,7 @@ function App() {
           return rest;
         }
         return msg;
-      }).concat(debugMessage).concat(cancellationUIMessage); // Add both messages
+      }).concat(cancellationUIMessage); // Add both messages
       
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());

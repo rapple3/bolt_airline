@@ -5,8 +5,9 @@ export interface BookingData {
   customerId: string;
   flightNumber: string;
   passengerName: string;
+  date: string;
   scheduledTime: string;
-  status: 'confirmed' | 'cancelled' | 'changed';
+  status: 'confirmed' | 'cancelled' | 'checked-in';
   seatInfo: SeatInfo;
   checkedIn: boolean;
   class: 'economy' | 'comfortPlus' | 'first' | 'deltaOne';

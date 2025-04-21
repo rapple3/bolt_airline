@@ -1,50 +1,61 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, forwardRef } from 'react';
 import { Send } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
-  disabled?: boolean;
+  disabled: boolean;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled }) => {
-  const [input, setInput] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+// Use forwardRef to accept the ref from the parent (App.tsx)
+export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
+  ({ onSendMessage, disabled }, ref) => {
+    const [inputValue, setInputValue] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim() && !disabled) {
-      onSendMessage(input);
-      setInput('');
-      // Focus back on the input field after submission
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
-    }
-  };
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      setInputValue(event.target.value);
+    };
 
-  // Focus input when component mounts
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    const handleSendClick = () => {
+      if (inputValue.trim() && !disabled) {
+        onSendMessage(inputValue.trim());
+        setInputValue(''); // Clear input after sending
+      }
+    };
 
-  return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <input
-        ref={inputRef}
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Type your message here..."
-        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        disabled={disabled}
-      />
-      <button
-        type="submit"
-        disabled={disabled}
-        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Send size={20} />
-      </button>
-    </form>
-  );
-};
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault(); // Prevent default Enter behavior (newline)
+        handleSendClick();
+      }
+    };
+
+    return (
+      <div className="flex items-center space-x-2">
+        <input
+          ref={ref} // Assign the forwarded ref to the input element
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Type your message..."
+          disabled={disabled}
+          className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+        />
+        <button
+          onClick={handleSendClick}
+          disabled={disabled || !inputValue.trim()}
+          className={`p-2 rounded-md text-white ${
+            disabled || !inputValue.trim()
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-600'
+          } transition-colors`}
+        >
+          <Send className="w-5 h-5" />
+        </button>
+      </div>
+    );
+  }
+);
+
+// Add display name for better debugging in React DevTools
+ChatInput.displayName = 'ChatInput';
