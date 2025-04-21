@@ -86,6 +86,8 @@ function App() {
       timestamp: new Date()
     }]);
     resetChatHistory();
+    // Add focus logic
+    setTimeout(() => inputRef.current?.focus(), 0); 
   };
 
   const handleSendMessage = async (content: string) => {
@@ -197,15 +199,15 @@ function App() {
     } finally {
       setIsLoading(false);
       // Re-focus the input after sending/loading finishes
-      inputRef.current?.focus(); // Focus the input using the ref
+      // Use setTimeout to ensure focus happens after any immediate re-renders
+      setTimeout(() => inputRef.current?.focus(), 0); 
     }
   };
 
-  // Handle reset data button click
   const handleResetData = () => {
     dataManager.resetData();
     setCurrentUser(dataManager.getUserProfile());
-    handleReset();
+    handleReset(); // This already includes the focus logic
     // Show confirmation message
     setMessages([
       {
@@ -217,6 +219,7 @@ function App() {
     ]);
     // Close sidebar on mobile after action
     setSidebarOpen(false);
+    // No separate focus needed here as handleReset takes care of it
   };
 
   // Directly trigger a flight search for testing
@@ -409,7 +412,8 @@ function App() {
        setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false); // Hide loading indicator
-      inputRef.current?.focus(); // Re-focus input here too
+      // Re-focus input here too, using setTimeout
+      setTimeout(() => inputRef.current?.focus(), 0); 
     }
   };
 
@@ -464,6 +468,8 @@ function App() {
       // Force refresh the current user data *after* updating messages
       setCurrentUser(dataManager.getUserProfile());
     });
+    // Add focus logic
+    setTimeout(() => inputRef.current?.focus(), 0); 
   };
 
   // Handler for flight cancellation confirmation
@@ -546,6 +552,8 @@ function App() {
       
       return newState;
     });
+    // Add focus logic
+    setTimeout(() => inputRef.current?.focus(), 0); 
   };
 
   // Handler for cancelling a cancellation
@@ -599,6 +607,8 @@ function App() {
       
       return updatedMessages;
     });
+    // Add focus logic
+    setTimeout(() => inputRef.current?.focus(), 0); 
   };
 
   // Handler for flight change confirmation
@@ -682,6 +692,8 @@ function App() {
       
       return newState;
     });
+    // Add focus logic
+    setTimeout(() => inputRef.current?.focus(), 0); 
   };
 
   // Handler for cancelling a flight change
@@ -735,6 +747,8 @@ function App() {
       
       return updatedMessages;
     });
+    // Add focus logic
+    setTimeout(() => inputRef.current?.focus(), 0); 
   };
 
   // Handler for seat change and upgrade confirmation
@@ -830,6 +844,9 @@ function App() {
           timestamp: new Date()
         }
       ]);
+    } finally {
+       // Add focus logic in finally block if it exists
+      setTimeout(() => inputRef.current?.focus(), 0); 
     }
   };
 
@@ -884,6 +901,8 @@ function App() {
       
       return updatedMessages;
     });
+    // Add focus logic
+    setTimeout(() => inputRef.current?.focus(), 0); 
   };
 
   return (
